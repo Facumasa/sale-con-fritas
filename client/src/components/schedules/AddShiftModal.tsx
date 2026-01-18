@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Info } from 'lucide-react';
 import { useEmployeeStore } from '../../store/employeeStore';
 import { Shift, CreateShiftRequest } from '../../services/shifts';
-import { getShiftPresets } from '../../constants/shiftDefaults';
+import { shiftService } from '../../services/shifts';
 
 interface AddShiftModalProps {
   isOpen: boolean;
@@ -14,12 +14,44 @@ interface AddShiftModalProps {
   preselectedDate?: string;
 }
 
-const typeOptions = [
-  { value: 'MORNING', label: 'Mañana' },
-  { value: 'AFTERNOON', label: 'Tarde' },
-  { value: 'NIGHT', label: 'Noche' },
-  { value: 'OFF', label: 'Día libre' },
-];
+// Función para determinar el tipo de turno según la hora de inicio
+const getShiftTypeFromStartTime = (startTime: string): 'MORNING' | 'AFTERNOON' | 'NIGHT' => {
+  if (!startTime) return 'MORNING';
+  
+  const [hours, minutes] = startTime.split(':').map(Number);
+  const totalMinutes = hours * 60 + minutes;
+  
+  // MORNING: 06:00 - 14:59 (360 - 899 minutos)
+  // AFTERNOON: 15:00 - 21:59 (900 - 1319 minutos)
+  // NIGHT: 22:00 - 05:59 (1320 - 1439 o 0 - 359 minutos)
+  
+  if (totalMinutes >= 360 && totalMinutes < 900) {
+    return 'MORNING';
+  } else if (totalMinutes >= 900 && totalMinutes < 1320) {
+    return 'AFTERNOON';
+  } else {
+    return 'NIGHT'; // 22:00-23:59 o 00:00-05:59
+  }
+};
+
+// Configuración de badges por tipo
+const typeBadgeConfig = {
+  MORNING: {
+    emoji: '🌅',
+    label: 'Turno de Mañana',
+    className: 'bg-blue-100 text-blue-800 border-blue-200',
+  },
+  AFTERNOON: {
+    emoji: '🌆',
+    label: 'Turno de Tarde',
+    className: 'bg-orange-100 text-orange-800 border-orange-200',
+  },
+  NIGHT: {
+    emoji: '🌙',
+    label: 'Turno de Noche',
+    className: 'bg-purple-100 text-purple-800 border-purple-200',
+  },
+};
 
 export default function AddShiftModal({
   isOpen,
@@ -35,10 +67,43 @@ export default function AddShiftModal({
   const [date, setDate] = useState('');
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('17:00');
-  const [type, setType] = useState<'MORNING' | 'AFTERNOON' | 'NIGHT' | 'OFF'>('MORNING');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [existingShifts, setExistingShifts] = useState<Shift[]>([]);
+
+  // Calcular tipo automáticamente basado en hora de inicio
+  const detectedType = getShiftTypeFromStartTime(startTime);
+
+  // Obtener turnos existentes del empleado para el día seleccionado
+  useEffect(() => {
+    const fetchExistingShifts = async () => {
+      if (!employeeId || !date || editingShift) {
+        setExistingShifts([]);
+        return;
+      }
+
+      try {
+        const shifts = await shiftService.getByEmployee(employeeId, date, date);
+        // Filtrar solo los turnos del día exacto (no OFF legacy)
+        const targetDate = new Date(date);
+        const shiftsForDay = shifts.filter((shift) => {
+          const shiftDate = new Date(shift.date);
+          const isSameDay =
+            shiftDate.getDate() === targetDate.getDate() &&
+            shiftDate.getMonth() === targetDate.getMonth() &&
+            shiftDate.getFullYear() === targetDate.getFullYear();
+          return isSameDay && shift.type !== 'OFF';
+        });
+        setExistingShifts(shiftsForDay);
+      } catch (err) {
+        // Si hay error, no mostrar advertencia
+        setExistingShifts([]);
+      }
+    };
+
+    fetchExistingShifts();
+  }, [employeeId, date, editingShift]);
 
   useEffect(() => {
     if (editingShift) {
@@ -46,16 +111,8 @@ export default function AddShiftModal({
       setDate(editingShift.date.split('T')[0]);
       setStartTime(editingShift.startTime);
       setEndTime(editingShift.endTime);
-      setType(editingShift.type as 'MORNING' | 'AFTERNOON' | 'NIGHT');
       setNotes(editingShift.notes || '');
     } else {
-      // Aplicar presets cuando cambia el tipo (solo si no es edición)
-      const presets = getShiftPresets();
-      if (presets[type] && !editingShift) {
-        setStartTime(presets[type].startTime || '09:00');
-        setEndTime(presets[type].endTime || '17:00');
-      }
-
       // Aplicar preselecciones
       if (preselectedEmployeeId) {
         setEmployeeId(preselectedEmployeeId);
@@ -69,18 +126,7 @@ export default function AddShiftModal({
         setDate(`${year}-${month}-${day}`);
       }
     }
-  }, [editingShift, selectedDate, preselectedEmployeeId, preselectedDate, type]);
-
-  // Actualizar horas cuando cambia el tipo (si no está editando)
-  useEffect(() => {
-    if (!editingShift && isOpen) {
-      const presets = getShiftPresets();
-      if (presets[type]) {
-        setStartTime(presets[type].startTime || '09:00');
-        setEndTime(presets[type].endTime || '17:00');
-      }
-    }
-  }, [type, isOpen, editingShift]);
+  }, [editingShift, selectedDate, preselectedEmployeeId, preselectedDate]);
 
   const parseTime = (timeStr: string): number => {
     const [hours, minutes] = timeStr.split(':').map(Number);
@@ -88,46 +134,40 @@ export default function AddShiftModal({
   };
 
   const calculateHours = () => {
-    // Los días libres no tienen horas
-    if (type === 'OFF' || !startTime || !endTime) return 0;
+    if (!startTime || !endTime) return 0;
     const start = parseTime(startTime);
     let end = parseTime(endTime);
     if (end < start) end += 24;
     return Math.round((end - start) * 100) / 100;
   };
 
-  // Limpiar horas cuando se selecciona OFF
-  useEffect(() => {
-    if (type === 'OFF' && !editingShift) {
-      setStartTime('');
-      setEndTime('');
-    }
-  }, [type, editingShift]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    if (!employeeId || !date || !type) {
+    if (!employeeId || !date) {
       setError('Por favor completa todos los campos requeridos');
       setLoading(false);
       return;
     }
 
-    // Para días libres no se requieren horas
-    if (type !== 'OFF' && (!startTime || !endTime)) {
+    // Validar que se completen las horas
+    if (!startTime || !endTime) {
       setError('Por favor completa las horas de inicio y fin');
       setLoading(false);
       return;
     }
 
     try {
+      // El tipo se determina automáticamente según la hora de inicio
+      const type = getShiftTypeFromStartTime(startTime);
+      
       await onSave({
         employeeId,
         date,
-        startTime: type === 'OFF' ? '' : startTime,
-        endTime: type === 'OFF' ? '' : endTime,
+        startTime,
+        endTime,
         type,
         notes: notes || undefined,
       });
@@ -144,9 +184,9 @@ export default function AddShiftModal({
     setDate('');
     setStartTime('09:00');
     setEndTime('17:00');
-    setType('MORNING');
     setNotes('');
     setError('');
+    setExistingShifts([]);
     onClose();
   };
 
@@ -172,6 +212,26 @@ export default function AddShiftModal({
               {error && (
                 <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
                   {error}
+                </div>
+              )}
+
+              {/* Advertencia informativa si el empleado ya tiene turnos ese día */}
+              {!editingShift && existingShifts.length > 0 && (
+                <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg text-sm flex items-start">
+                  <Info className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <strong>ℹ️ Este empleado ya tiene {existingShifts.length} turno{existingShifts.length > 1 ? 's' : ''} este día.</strong>
+                    <p className="mt-1 text-blue-700">
+                      Asegúrate de que no se solapen los horarios. Turnos existentes:
+                    </p>
+                    <ul className="mt-1 ml-4 list-disc text-blue-700">
+                      {existingShifts.map((shift) => (
+                        <li key={shift.id}>
+                          {shift.startTime} - {shift.endTime}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
               )}
 
@@ -207,60 +267,38 @@ export default function AddShiftModal({
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tipo de Turno
-                  <span className="ml-2 inline-flex items-center text-xs text-gray-500" title="Horario sugerido - puedes modificarlo">
-                    <Info className="h-3 w-3 mr-1" />
-                    Horario sugerido
-                  </span>
-                </label>
-                <select
-                  value={type}
-                  onChange={(e) => setType(e.target.value as 'MORNING' | 'AFTERNOON' | 'NIGHT' | 'OFF')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                >
-                  {typeOptions.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Hora Inicio
+                  </label>
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Hora Fin
+                  </label>
+                  <input
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                </div>
               </div>
 
-              {type === 'OFF' ? (
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                  <p className="text-sm text-gray-600">
-                    Los días libres no requieren horario
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Hora Inicio
-                    </label>
-                    <input
-                      type="time"
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required={type !== 'OFF'}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Hora Fin
-                    </label>
-                    <input
-                      type="time"
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required={type !== 'OFF'}
-                    />
-                  </div>
+              {/* Badge de preview del tipo detectado */}
+              {startTime && (
+                <div className={`inline-flex items-center px-3 py-2 rounded-lg border text-sm font-medium ${typeBadgeConfig[detectedType].className}`}>
+                  <span className="mr-2">{typeBadgeConfig[detectedType].emoji}</span>
+                  {typeBadgeConfig[detectedType].label}
                 </div>
               )}
 

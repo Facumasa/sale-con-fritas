@@ -1,6 +1,6 @@
 import { WeeklySchedule, Shift } from '../../services/shifts';
 import ShiftCard from './ShiftCard';
-import { Plus } from 'lucide-react';
+import { Plus, Home } from 'lucide-react';
 
 interface WeeklyViewProps {
   schedule: WeeklySchedule;
@@ -20,8 +20,7 @@ export default function WeeklyView({ schedule, onDeleteShift, onEditShift, onAdd
   const calculateHours = (shifts: Shift[]) => {
     let total = 0;
     shifts.forEach((shift) => {
-      // Los días libres (OFF) no cuentan horas
-      if (shift.type === 'OFF') return;
+      // Solo contar turnos con horas válidas
       if (!shift.startTime || !shift.endTime) return;
       const start = parseTime(shift.startTime);
       let end = parseTime(shift.endTime);
@@ -116,21 +115,41 @@ export default function WeeklyView({ schedule, onDeleteShift, onEditShift, onAdd
                   </td>
                   {daysOfWeek.map((day, dayIndex) => {
                     const dayShifts = getShiftsForDay(employee.shifts, dayIndex);
+                    const hasShifts = dayShifts.length > 0;
                     return (
                       <td
                         key={dayIndex}
-                        className="px-2 py-2 align-top relative group hover:bg-gray-50 transition-colors"
+                        className={`px-2 py-2 align-top relative group transition-colors ${
+                          !hasShifts 
+                            ? '' 
+                            : 'hover:bg-gray-50'
+                        }`}
+                        style={
+                          !hasShifts
+                            ? {
+                                background: 'repeating-linear-gradient(45deg, #f9fafb, #f9fafb 10px, #f3f4f6 10px, #f3f4f6 20px)',
+                              }
+                            : undefined
+                        }
                       >
-                        <div className="space-y-1">
-                          {dayShifts.map((shift) => (
-                            <ShiftCard
-                              key={shift.id}
-                              shift={shift}
-                              onDelete={onDeleteShift}
-                              onEdit={onEditShift}
-                            />
-                          ))}
-                        </div>
+                        {hasShifts ? (
+                          <div className="space-y-1.5">
+                            {dayShifts.map((shift, idx) => (
+                              <div key={shift.id}>
+                                <ShiftCard
+                                  shift={shift}
+                                  onDelete={onDeleteShift}
+                                  onEdit={onEditShift}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-2 px-3 text-xs text-gray-600">
+                            <Home className="h-4 w-4 mb-1" />
+                            <span className="text-[10px] font-medium">Libre</span>
+                          </div>
+                        )}
                         {onAddShift && (
                           <button
                             onClick={(e) => handleAddShift(e, employee.employeeId, dayIndex)}
