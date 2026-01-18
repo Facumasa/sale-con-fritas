@@ -12,6 +12,8 @@ interface AddShiftModalProps {
   selectedDate?: Date;
   preselectedEmployeeId?: string;
   preselectedDate?: string;
+  preselectedStartTime?: string;
+  preselectedEndTime?: string;
 }
 
 // Función para determinar el tipo de turno según la hora de inicio
@@ -61,6 +63,8 @@ export default function AddShiftModal({
   selectedDate,
   preselectedEmployeeId,
   preselectedDate,
+  preselectedStartTime,
+  preselectedEndTime,
 }: AddShiftModalProps) {
   const { employees } = useEmployeeStore();
   const [employeeId, setEmployeeId] = useState('');
@@ -125,8 +129,14 @@ export default function AddShiftModal({
         const day = String(selectedDate.getDate()).padStart(2, '0');
         setDate(`${year}-${month}-${day}`);
       }
+      if (preselectedStartTime) {
+        setStartTime(preselectedStartTime);
+      }
+      if (preselectedEndTime) {
+        setEndTime(preselectedEndTime);
+      }
     }
-  }, [editingShift, selectedDate, preselectedEmployeeId, preselectedDate]);
+  }, [editingShift, selectedDate, preselectedEmployeeId, preselectedDate, preselectedStartTime, preselectedEndTime]);
 
   const parseTime = (timeStr: string): number => {
     const [hours, minutes] = timeStr.split(':').map(Number);

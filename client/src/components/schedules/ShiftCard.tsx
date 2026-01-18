@@ -73,7 +73,7 @@ export default function ShiftCard({ shift, onDelete, onEdit }: ShiftCardProps) {
         </div>
         <button
           onClick={handleDelete}
-          className="ml-2 p-1 rounded hover:bg-black/10 transition-colors"
+          className="ml-2 p-1 rounded hover:bg-black/10 transition-colors export-hide"
         >
           <X className="h-3 w-3" />
         </button>

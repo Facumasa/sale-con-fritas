@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { Plus, Settings } from 'lucide-react';
 import { WeeklySchedule, Shift } from '../../services/shifts';
 import { HourlySlot, getHourlySlots } from '../../constants/hourlySlots';
 import { useEmployeeStore } from '../../store/employeeStore';
@@ -7,11 +8,13 @@ interface HourlyViewProps {
   schedule: WeeklySchedule;
   onEditShift?: (shift: Shift) => void;
   onDeleteShift?: (id: string) => void;
+  onAddShift?: (date: string, startTime: string, endTime: string) => void;
+  onConfigSlots?: () => void;
 }
 
 const daysOfWeek = ['LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO', 'DOMINGO'];
 
-export default function HourlyView({ schedule, onEditShift, onDeleteShift }: HourlyViewProps) {
+export default function HourlyView({ schedule, onEditShift, onDeleteShift, onAddShift, onConfigSlots }: HourlyViewProps) {
   const { employees } = useEmployeeStore();
   // Obtener slots directamente sin memo para que se actualice cuando cambien
   const hourlySlots = getHourlySlots();
@@ -120,9 +123,25 @@ export default function HourlyView({ schedule, onEditShift, onDeleteShift }: Hou
     }
   };
 
+  const handleAddShiftClick = (e: React.MouseEvent, dayIndex: number, slot: HourlySlot) => {
+    e.stopPropagation();
+    if (onAddShift) {
+      const date = formatDateString(getDateForDay(dayIndex));
+      onAddShift(date, slot.startTime, slot.endTime);
+    }
+  };
+
   // Formatear franja horaria para mostrar
   const formatSlotLabel = (slot: HourlySlot): string => {
     return `${slot.startTime} - ${slot.endTime}`;
+  };
+
+  // Formatear fecha para mostrar en header (DD/MM)
+  const getFormattedDateForDay = (dayIndex: number): string => {
+    const dayDate = getDateForDay(dayIndex);
+    const month = String(dayDate.getMonth() + 1).padStart(2, '0');
+    const day = String(dayDate.getDate()).padStart(2, '0');
+    return `${day}/${month}`;
   };
 
   return (
@@ -132,14 +151,34 @@ export default function HourlyView({ schedule, onEditShift, onDeleteShift }: Hou
           <thead>
             <tr>
               <th className="border-2 border-gray-800 bg-green-100 px-4 py-3 text-left text-sm font-bold text-gray-900 min-w-[120px]">
-                Horario
+                <div className="flex flex-col">
+                  <div>Horario</div>
+                  {onConfigSlots && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onConfigSlots();
+                      }}
+                      className="mt-2 text-xs text-gray-500 hover:text-blue-600 transition-colors flex items-center gap-1"
+                      title="Configurar franjas horarias"
+                    >
+                      <Settings className="h-3 w-3" />
+                      <span>Configurar</span>
+                    </button>
+                  )}
+                </div>
               </th>
-              {daysOfWeek.map((day) => (
+              {daysOfWeek.map((day, dayIndex) => (
                 <th
                   key={day}
                   className="border-2 border-gray-800 bg-gray-200 px-4 py-3 text-center text-sm font-bold text-gray-900 min-w-[150px]"
                 >
-                  {day}
+                  <div className="flex flex-col items-center">
+                    <div>{day}</div>
+                    <div className="text-xs text-gray-500 font-normal mt-0.5">
+                      {getFormattedDateForDay(dayIndex)}
+                    </div>
+                  </div>
                 </th>
               ))}
             </tr>
@@ -155,7 +194,7 @@ export default function HourlyView({ schedule, onEditShift, onDeleteShift }: Hou
                   return (
                     <td
                       key={dayIndex}
-                      className={`border-2 border-gray-800 px-3 py-3 align-top ${
+                      className={`border-2 border-gray-800 px-3 py-3 align-top relative group ${
                         employeesInSlot.length === 0 ? 'bg-gray-100' : 'bg-white'
                       } hover:bg-gray-100 transition-colors min-h-[60px]`}
                     >
@@ -178,6 +217,15 @@ export default function HourlyView({ schedule, onEditShift, onDeleteShift }: Hou
                         </div>
                       ) : (
                         <div className="text-xs text-gray-400 text-center py-2">—</div>
+                      )}
+                      {onAddShift && (
+                        <button
+                          onClick={(e) => handleAddShiftClick(e, dayIndex, slot)}
+                          className="absolute top-1 right-1 w-6 h-6 flex items-center justify-center bg-blue-600 text-white rounded-full opacity-0 group-hover:opacity-100 hover:bg-blue-700 transition-all shadow-sm z-10 export-hide"
+                          title="Añadir turno"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </button>
                       )}
                     </td>
                   );

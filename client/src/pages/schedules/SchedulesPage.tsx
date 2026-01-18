@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Settings } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { ChevronLeft, ChevronRight, Plus, Settings, Camera } from 'lucide-react';
+import html2canvas from 'html2canvas';
 import { useShiftStore } from '../../store/shiftStore';
 import { useEmployeeStore } from '../../store/employeeStore';
+import { useAuthStore } from '../../store/authStore';
 import WeeklyView from '../../components/schedules/WeeklyView';
 import HourlyView from '../../components/schedules/HourlyView';
 import HourSlotsConfigModal from '../../components/schedules/HourSlotsConfigModal';
@@ -20,6 +22,9 @@ export default function SchedulesPage() {
   const { weeklySchedule, currentWeek, currentYear, fetchWeekly, addShift, updateShift, deleteShift, setWeek } =
     useShiftStore();
   const { fetchEmployees } = useEmployeeStore();
+  const { restaurant } = useAuthStore();
+  const [isExporting, setIsExporting] = useState(false);
+  const scheduleContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchEmployees();
@@ -86,11 +91,15 @@ export default function SchedulesPage() {
 
   const [preselectedEmployeeId, setPreselectedEmployeeId] = useState<string | undefined>();
   const [preselectedDate, setPreselectedDate] = useState<string | undefined>();
+  const [preselectedStartTime, setPreselectedStartTime] = useState<string | undefined>();
+  const [preselectedEndTime, setPreselectedEndTime] = useState<string | undefined>();
 
   const handleOpenModal = () => {
     setEditingShift(null);
     setPreselectedEmployeeId(undefined);
     setPreselectedDate(undefined);
+    setPreselectedStartTime(undefined);
+    setPreselectedEndTime(undefined);
     setIsModalOpen(true);
   };
 
@@ -98,6 +107,17 @@ export default function SchedulesPage() {
     setEditingShift(null);
     setPreselectedEmployeeId(employeeId);
     setPreselectedDate(date);
+    setPreselectedStartTime(undefined);
+    setPreselectedEndTime(undefined);
+    setIsModalOpen(true);
+  };
+
+  const handleAddShiftFromHourlyView = (date: string, startTime: string, endTime: string) => {
+    setEditingShift(null);
+    setPreselectedEmployeeId(undefined);
+    setPreselectedDate(date);
+    setPreselectedStartTime(startTime);
+    setPreselectedEndTime(endTime);
     setIsModalOpen(true);
   };
 
@@ -106,6 +126,113 @@ export default function SchedulesPage() {
     setEditingShift(null);
     setPreselectedEmployeeId(undefined);
     setPreselectedDate(undefined);
+    setPreselectedStartTime(undefined);
+    setPreselectedEndTime(undefined);
+  };
+
+  const handleExportToImage = async () => {
+    if (!scheduleContainerRef.current || !weeklySchedule) return;
+
+    setIsExporting(true);
+    try {
+      // Ocultar elementos que no deben aparecer en la imagen
+      const elementsToHide = document.querySelectorAll('.export-hide');
+      const originalDisplay: (string | null)[] = [];
+      elementsToHide.forEach((el) => {
+        originalDisplay.push((el as HTMLElement).style.display || null);
+        (el as HTMLElement).style.display = 'none';
+      });
+
+      // Ocultar controles de semana y botones
+      const weekControls = document.querySelector('.export-hide-controls');
+      if (weekControls) {
+        (weekControls as HTMLElement).style.display = 'none';
+      }
+
+      // Esperar un momento para que los cambios se apliquen
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Capturar la imagen
+      const canvas = await html2canvas(scheduleContainerRef.current, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        logging: false,
+        useCORS: true,
+      });
+
+      // Crear header con información del restaurante
+      const headerCanvas = document.createElement('canvas');
+      headerCanvas.width = canvas.width;
+      headerCanvas.height = 80;
+      const headerCtx = headerCanvas.getContext('2d');
+      if (headerCtx) {
+        headerCtx.fillStyle = '#ffffff';
+        headerCtx.fillRect(0, 0, headerCanvas.width, headerCanvas.height);
+
+        headerCtx.fillStyle = '#111827';
+        headerCtx.font = 'bold 24px Arial';
+        headerCtx.textAlign = 'left';
+        headerCtx.fillText(restaurant?.name || 'Restaurante', 20, 30);
+
+        headerCtx.font = '16px Arial';
+        headerCtx.fillStyle = '#6b7280';
+        headerCtx.fillText(`Semana ${currentWeek} - ${currentYear}`, 20, 55);
+
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('es-ES', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        });
+        headerCtx.font = '14px Arial';
+        headerCtx.fillText(`Generado el ${dateStr}`, canvas.width - 200, 55);
+      }
+
+      // Combinar header y tabla
+      const finalCanvas = document.createElement('canvas');
+      finalCanvas.width = canvas.width;
+      finalCanvas.height = headerCanvas.height + canvas.height;
+      const finalCtx = finalCanvas.getContext('2d');
+      if (finalCtx) {
+        finalCtx.drawImage(headerCanvas, 0, 0);
+        finalCtx.drawImage(canvas, 0, headerCanvas.height);
+      }
+
+      // Descargar la imagen
+      finalCanvas.toBlob((blob) => {
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `horario-semanal-semana-${currentWeek}-${currentYear}.png`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        }
+      }, 'image/png');
+
+      // Restaurar elementos ocultos
+      elementsToHide.forEach((el, index) => {
+        if (originalDisplay[index] !== null) {
+          (el as HTMLElement).style.display = originalDisplay[index] || '';
+        } else {
+          (el as HTMLElement).style.removeProperty('display');
+        }
+      });
+
+      if (weekControls) {
+        (weekControls as HTMLElement).style.removeProperty('display');
+      }
+
+      // Mostrar mensaje de éxito (podrías usar un toast aquí)
+      alert('Imagen descargada exitosamente');
+    } catch (error) {
+      console.error('Error al exportar imagen:', error);
+      alert('Error al exportar la imagen. Por favor, inténtalo de nuevo.');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -139,7 +266,7 @@ export default function SchedulesPage() {
       {activeTab === 'schedule' ? (
         <div className="space-y-4">
           {/* Week Selector and View Toggle */}
-          <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center justify-between flex-wrap gap-4 export-hide-controls">
             <div className="flex items-center space-x-4">
               <button
                 onClick={handlePrevWeek}
@@ -183,48 +310,51 @@ export default function SchedulesPage() {
                 </button>
               </div>
 
-              {viewMode === 'hourly' && (
-                <button
-                  onClick={() => setIsSlotsConfigModalOpen(true)}
-                  className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-                  title="Configurar franjas horarias"
-                >
-                  <Settings className="h-4 w-4 mr-2" />
-                  Configurar
-                </button>
-              )}
-
               <button
                 onClick={handleOpenModal}
-                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 export-hide"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Añadir Turno
+              </button>
+
+              <button
+                onClick={handleExportToImage}
+                disabled={isExporting || !weeklySchedule}
+                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed export-hide"
+                title="Exportar como imagen"
+              >
+                <Camera className="h-4 w-4 mr-2" />
+                {isExporting ? 'Generando...' : 'Exportar Imagen'}
               </button>
             </div>
           </div>
 
           {/* Schedule View */}
-          {weeklySchedule ? (
-            viewMode === 'employee' ? (
-              <WeeklyView
-                schedule={weeklySchedule}
-                onDeleteShift={handleDeleteShift}
-                onEditShift={handleEditShift}
-                onAddShift={handleAddShiftFromCell}
-              />
+          <div ref={scheduleContainerRef}>
+            {weeklySchedule ? (
+              viewMode === 'employee' ? (
+                <WeeklyView
+                  schedule={weeklySchedule}
+                  onDeleteShift={handleDeleteShift}
+                  onEditShift={handleEditShift}
+                  onAddShift={handleAddShiftFromCell}
+                />
+              ) : (
+                <HourlyView
+                  schedule={weeklySchedule}
+                  onEditShift={handleEditShift}
+                  onDeleteShift={handleDeleteShift}
+                  onAddShift={handleAddShiftFromHourlyView}
+                  onConfigSlots={() => setIsSlotsConfigModalOpen(true)}
+                />
+              )
             ) : (
-              <HourlyView
-                schedule={weeklySchedule}
-                onEditShift={handleEditShift}
-                onDeleteShift={handleDeleteShift}
-              />
-            )
-          ) : (
-            <div className="text-center py-12 text-gray-500">
-              Cargando horario semanal...
-            </div>
-          )}
+              <div className="text-center py-12 text-gray-500">
+                Cargando horario semanal...
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         <EmployeesTab />
@@ -238,6 +368,8 @@ export default function SchedulesPage() {
         editingShift={editingShift}
         preselectedEmployeeId={preselectedEmployeeId}
         preselectedDate={preselectedDate}
+        preselectedStartTime={preselectedStartTime}
+        preselectedEndTime={preselectedEndTime}
       />
 
       {/* Hourly Slots Configuration Modal */}

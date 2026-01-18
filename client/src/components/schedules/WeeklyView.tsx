@@ -72,6 +72,16 @@ export default function WeeklyView({ schedule, onDeleteShift, onEditShift, onAdd
     return `${year}-${month}-${day}`;
   };
 
+  // Formatear fecha para mostrar en header (DD/MM)
+  const getFormattedDateForDay = (dayIndex: number): string => {
+    const weekStart = getWeekStartDate(schedule.week, schedule.year);
+    const dayDate = new Date(weekStart);
+    dayDate.setDate(weekStart.getDate() + dayIndex);
+    const month = String(dayDate.getMonth() + 1).padStart(2, '0');
+    const day = String(dayDate.getDate()).padStart(2, '0');
+    return `${day}/${month}`;
+  };
+
   const handleAddShift = (e: React.MouseEvent, employeeId: string, dayIndex: number) => {
     e.stopPropagation();
     if (onAddShift) {
@@ -89,12 +99,17 @@ export default function WeeklyView({ schedule, onDeleteShift, onEditShift, onAdd
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 z-10 min-w-[150px]">
                 Empleado
               </th>
-              {daysOfWeek.map((day) => (
+              {daysOfWeek.map((day, dayIndex) => (
                 <th
                   key={day}
                   className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]"
                 >
-                  {day}
+                  <div className="flex flex-col items-center">
+                    <div className="font-semibold">{day}</div>
+                    <div className="text-xs text-gray-500 font-normal mt-0.5">
+                      {getFormattedDateForDay(dayIndex)}
+                    </div>
+                  </div>
                 </th>
               ))}
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -127,7 +142,7 @@ export default function WeeklyView({ schedule, onDeleteShift, onEditShift, onAdd
                         style={
                           !hasShifts
                             ? {
-                                background: 'repeating-linear-gradient(45deg, #f9fafb, #f9fafb 10px, #f3f4f6 10px, #f3f4f6 20px)',
+                                background: 'repeating-linear-gradient(45deg, #fafafa, #fafafa 12px, #f5f5f5 12px, #f5f5f5 24px)',
                               }
                             : undefined
                         }
@@ -145,7 +160,7 @@ export default function WeeklyView({ schedule, onDeleteShift, onEditShift, onAdd
                             ))}
                           </div>
                         ) : (
-                          <div className="flex flex-col items-center justify-center py-2 px-3 text-xs text-gray-600">
+                          <div className="flex flex-col items-center justify-center py-2 px-3 text-xs text-gray-400">
                             <Home className="h-4 w-4 mb-1" />
                             <span className="text-[10px] font-medium">Libre</span>
                           </div>
@@ -153,7 +168,7 @@ export default function WeeklyView({ schedule, onDeleteShift, onEditShift, onAdd
                         {onAddShift && (
                           <button
                             onClick={(e) => handleAddShift(e, employee.employeeId, dayIndex)}
-                            className="absolute top-1 right-1 w-6 h-6 flex items-center justify-center bg-blue-600 text-white rounded-full opacity-0 group-hover:opacity-100 hover:bg-blue-700 transition-all shadow-sm z-10"
+                            className="absolute top-1 right-1 w-6 h-6 flex items-center justify-center bg-blue-600 text-white rounded-full opacity-0 group-hover:opacity-100 hover:bg-blue-700 transition-all shadow-sm z-10 export-hide"
                             title="Añadir turno"
                           >
                             <Plus className="h-3 w-3" />
