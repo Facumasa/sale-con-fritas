@@ -1,15 +1,20 @@
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Settings } from 'lucide-react';
 import { useShiftStore } from '../../store/shiftStore';
 import { useEmployeeStore } from '../../store/employeeStore';
 import WeeklyView from '../../components/schedules/WeeklyView';
+import HourlyView from '../../components/schedules/HourlyView';
+import HourSlotsConfigModal from '../../components/schedules/HourSlotsConfigModal';
 import EmployeesTab from '../../components/schedules/EmployeesTab';
 import AddShiftModal from '../../components/schedules/AddShiftModal';
 import { Shift, CreateShiftRequest, UpdateShiftRequest } from '../../services/shifts';
+import { HourlySlot } from '../../constants/hourlySlots';
 
 export default function SchedulesPage() {
   const [activeTab, setActiveTab] = useState<'schedule' | 'employees'>('schedule');
+  const [viewMode, setViewMode] = useState<'employee' | 'hourly'>('employee');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSlotsConfigModalOpen, setIsSlotsConfigModalOpen] = useState(false);
   const [editingShift, setEditingShift] = useState<Shift | null>(null);
 
   const { weeklySchedule, currentWeek, currentYear, fetchWeekly, addShift, updateShift, deleteShift, setWeek } =
@@ -133,8 +138,8 @@ export default function SchedulesPage() {
 
       {activeTab === 'schedule' ? (
         <div className="space-y-4">
-          {/* Week Selector */}
-          <div className="flex items-center justify-between">
+          {/* Week Selector and View Toggle */}
+          <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center space-x-4">
               <button
                 onClick={handlePrevWeek}
@@ -152,23 +157,69 @@ export default function SchedulesPage() {
                 <ChevronRight className="h-5 w-5" />
               </button>
             </div>
-            <button
-              onClick={handleOpenModal}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Añadir Turno
-            </button>
+
+            {/* View Toggle */}
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setViewMode('employee')}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    viewMode === 'employee'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Por Empleado
+                </button>
+                <button
+                  onClick={() => setViewMode('hourly')}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    viewMode === 'hourly'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Por Horario
+                </button>
+              </div>
+
+              {viewMode === 'hourly' && (
+                <button
+                  onClick={() => setIsSlotsConfigModalOpen(true)}
+                  className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                  title="Configurar franjas horarias"
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  Configurar
+                </button>
+              )}
+
+              <button
+                onClick={handleOpenModal}
+                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Añadir Turno
+              </button>
+            </div>
           </div>
 
-          {/* Weekly Schedule */}
+          {/* Schedule View */}
           {weeklySchedule ? (
-            <WeeklyView
-              schedule={weeklySchedule}
-              onDeleteShift={handleDeleteShift}
-              onEditShift={handleEditShift}
-              onAddShift={handleAddShiftFromCell}
-            />
+            viewMode === 'employee' ? (
+              <WeeklyView
+                schedule={weeklySchedule}
+                onDeleteShift={handleDeleteShift}
+                onEditShift={handleEditShift}
+                onAddShift={handleAddShiftFromCell}
+              />
+            ) : (
+              <HourlyView
+                schedule={weeklySchedule}
+                onEditShift={handleEditShift}
+                onDeleteShift={handleDeleteShift}
+              />
+            )
           ) : (
             <div className="text-center py-12 text-gray-500">
               Cargando horario semanal...
@@ -187,6 +238,18 @@ export default function SchedulesPage() {
         editingShift={editingShift}
         preselectedEmployeeId={preselectedEmployeeId}
         preselectedDate={preselectedDate}
+      />
+
+      {/* Hourly Slots Configuration Modal */}
+      <HourSlotsConfigModal
+        isOpen={isSlotsConfigModalOpen}
+        onClose={() => setIsSlotsConfigModalOpen(false)}
+        onSlotsChange={(slots: HourlySlot[]) => {
+          // Forzar re-render de HourlyView cuando cambian los slots
+          if (weeklySchedule) {
+            fetchWeekly(currentWeek, currentYear);
+          }
+        }}
       />
     </div>
   );
