@@ -1,0 +1,107 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String      @id @default(cuid())
+  email        String      @unique
+  password     String
+  name         String
+  role         String      // OWNER, ADMIN, EMPLOYEE
+  restaurantId String?
+  restaurant   Restaurant? @relation("RestaurantUsers", fields: [restaurantId], references: [id])
+  employee     Employee?
+  ownedRestaurant Restaurant? @relation("RestaurantOwner")
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model Restaurant {
+  id             String        @id @default(cuid())
+  name           String
+  address        String?
+  phone          String?
+  email          String?
+  ownerId        String        @unique
+  owner          User          @relation("RestaurantOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  subscription   Subscription?
+  employees      Employee[]
+  shifts         Shift[]
+  toolAccess     ToolAccess[]
+  users          User[]        @relation("RestaurantUsers")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model Subscription {
+  id                    String   @id @default(cuid())
+  restaurantId          String   @unique
+  restaurant            Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  plan                  String   // BASICO, PROFESIONAL, PREMIUM
+  status                String   // ACTIVE, CANCELLED, PAST_DUE, TRIALING
+  currentPeriodStart    DateTime
+  currentPeriodEnd      DateTime
+  trialEndsAt           DateTime?
+  stripeCustomerId      String?
+  stripeSubscriptionId  String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model Employee {
+  id           String     @id @default(cuid())
+  userId       String?    @unique
+  user         User?      @relation(fields: [userId], references: [id])
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  name         String
+  position     String
+  hourlyRate   Float?
+  phone        String?
+  color        String     @default("#3b82f6")
+  isActive     Boolean    @default(true)
+  shifts       Shift[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([restaurantId])
+}
+
+model Shift {
+  id           String     @id @default(cuid())
+  employeeId   String
+  employee     Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  date         DateTime
+  startTime    String
+  endTime      String
+  type         String     // MORNING, AFTERNOON, NIGHT, OFF
+  notes        String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([employeeId])
+  @@index([restaurantId])
+  @@index([date])
+}
+
+model ToolAccess {
+  id           String     @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  toolName     String     // HORARIOS, INVENTARIO, RESERVAS, COMANDAS, ANALYTICS
+  isEnabled    Boolean    @default(false)
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([restaurantId, toolName])
+  @@index([restaurantId])
+}
