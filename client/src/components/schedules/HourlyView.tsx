@@ -19,14 +19,28 @@ export default function HourlyView({ schedule, onEditShift, onDeleteShift, onAdd
   // Obtener slots directamente sin memo para que se actualice cuando cambien
   const hourlySlots = getHourlySlots();
 
-  // Crear mapa de colores de empleados
-  const employeeColors = useMemo(() => {
-    const colorMap: Record<string, string> = {};
-    employees.forEach((emp) => {
-      colorMap[emp.id] = emp.color || '#3b82f6';
-    });
-    return colorMap;
-  }, [employees]);
+  // Crear mapa de colores de empleados con estilos suaves
+  const getEmployeeBadgeStyle = (employeeId: string) => {
+    const employee = employees.find((emp) => emp.id === employeeId);
+    if (!employee) {
+      return 'bg-blue-50 border-blue-200 text-blue-700';
+    }
+
+    const color = employee.color || '#3b82f6';
+    
+    // Mapear colores comunes a estilos suaves
+    const colorMap: Record<string, string> = {
+      '#3b82f6': 'bg-blue-50 border-blue-200 text-blue-700',
+      '#10b981': 'bg-emerald-50 border-emerald-200 text-emerald-700',
+      '#f59e0b': 'bg-amber-50 border-amber-200 text-amber-700',
+      '#ef4444': 'bg-rose-50 border-rose-200 text-rose-700',
+      '#ec4899': 'bg-pink-50 border-pink-200 text-pink-700',
+      '#8b5cf6': 'bg-purple-50 border-purple-200 text-purple-700',
+      '#06b6d4': 'bg-cyan-50 border-cyan-200 text-cyan-700',
+    };
+
+    return colorMap[color.toLowerCase()] || 'bg-blue-50 border-blue-200 text-blue-700';
+  };
 
   // Función para obtener fecha de un día de la semana
   const getDateForDay = (dayIndex: number): Date => {
@@ -145,12 +159,12 @@ export default function HourlyView({ schedule, onEditShift, onDeleteShift, onAdd
   };
 
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
+    <div className="bg-gray-50/50 rounded-xl overflow-hidden shadow-lg backdrop-blur-sm">
       <div className="overflow-x-auto">
-        <table className="min-w-full border-collapse border-2 border-gray-800">
+        <table className="min-w-full border-collapse">
           <thead>
             <tr>
-              <th className="border-2 border-gray-800 bg-green-100 px-4 py-3 text-left text-sm font-bold text-gray-900 min-w-[120px]">
+              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 bg-gradient-to-b from-gray-50 to-white min-w-[120px] border-b-2 border-gray-200/60">
                 <div className="flex flex-col">
                   <div>Horario</div>
                   {onConfigSlots && (
@@ -159,7 +173,7 @@ export default function HourlyView({ schedule, onEditShift, onDeleteShift, onAdd
                         e.stopPropagation();
                         onConfigSlots();
                       }}
-                      className="mt-2 text-xs text-gray-500 hover:text-blue-600 transition-colors flex items-center gap-1"
+                      className="mt-2 text-xs text-gray-500 hover:text-blue-600 transition-all duration-200 flex items-center gap-1"
                       title="Configurar franjas horarias"
                     >
                       <Settings className="h-3 w-3" />
@@ -171,11 +185,11 @@ export default function HourlyView({ schedule, onEditShift, onDeleteShift, onAdd
               {daysOfWeek.map((day, dayIndex) => (
                 <th
                   key={day}
-                  className="border-2 border-gray-800 bg-gray-200 px-4 py-3 text-center text-sm font-bold text-gray-900 min-w-[150px]"
+                  className="px-6 py-4 text-center text-sm font-semibold text-gray-700 bg-gradient-to-b from-gray-50 to-white min-w-[150px] border-b-2 border-gray-200/60"
                 >
                   <div className="flex flex-col items-center">
                     <div>{day}</div>
-                    <div className="text-xs text-gray-500 font-normal mt-0.5">
+                    <div className="text-xs text-gray-400 font-normal mt-0.5">
                       {getFormattedDateForDay(dayIndex)}
                     </div>
                   </div>
@@ -185,8 +199,8 @@ export default function HourlyView({ schedule, onEditShift, onDeleteShift, onAdd
           </thead>
           <tbody>
             {hourlySlots.map((slot) => (
-              <tr key={slot.id} className="hover:bg-gray-50">
-                <td className="border-2 border-gray-800 bg-green-50 px-4 py-3 text-left text-sm font-medium text-gray-900">
+              <tr key={slot.id} className="border-b border-gray-200/40">
+                <td className="px-6 py-4 text-left text-sm font-medium text-gray-700 bg-gradient-to-r from-gray-50 to-white border-r border-gray-200/50">
                   {formatSlotLabel(slot)}
                 </td>
                 {daysOfWeek.map((_, dayIndex) => {
@@ -194,20 +208,21 @@ export default function HourlyView({ schedule, onEditShift, onDeleteShift, onAdd
                   return (
                     <td
                       key={dayIndex}
-                      className={`border-2 border-gray-800 px-3 py-3 align-top relative group ${
-                        employeesInSlot.length === 0 ? 'bg-gray-100' : 'bg-white'
-                      } hover:bg-gray-100 transition-colors min-h-[60px]`}
+                      className={`px-4 py-3 align-top relative group transition-all duration-200 border border-gray-200/40 min-h-[60px] ${
+                        employeesInSlot.length === 0 
+                          ? 'bg-gray-50/40 backdrop-blur-sm' 
+                          : 'bg-white/60 backdrop-blur-sm hover:bg-gray-50/80'
+                      }`}
                     >
                       {employeesInSlot.length > 0 ? (
-                        <div className="space-y-1.5">
+                        <div className="space-y-2">
                           {employeesInSlot.map(({ shift, employeeName, employeeId }) => {
-                            const color = employeeColors[employeeId] || '#3b82f6';
+                            const badgeStyle = getEmployeeBadgeStyle(employeeId);
                             return (
                               <div
                                 key={shift.id}
                                 onClick={() => handleEmployeeBadgeClick(shift)}
-                                className="inline-block px-3 py-1.5 rounded-md text-xs font-bold text-white cursor-pointer hover:opacity-90 transition-opacity shadow-sm"
-                                style={{ backgroundColor: color }}
+                                className={`inline-block px-3 py-1.5 rounded-full text-sm font-medium cursor-pointer backdrop-blur-sm bg-opacity-60 border shadow-sm hover:shadow-md transition-all duration-200 ${badgeStyle}`}
                                 title={`${employeeName} - ${shift.startTime} a ${shift.endTime}`}
                               >
                                 {employeeName}
@@ -216,12 +231,12 @@ export default function HourlyView({ schedule, onEditShift, onDeleteShift, onAdd
                           })}
                         </div>
                       ) : (
-                        <div className="text-xs text-gray-400 text-center py-2">—</div>
+                        <div className="text-xs text-gray-300 text-center py-4">—</div>
                       )}
                       {onAddShift && (
                         <button
                           onClick={(e) => handleAddShiftClick(e, dayIndex, slot)}
-                          className="absolute top-1 right-1 w-6 h-6 flex items-center justify-center bg-blue-600 text-white rounded-full opacity-0 group-hover:opacity-100 hover:bg-blue-700 transition-all shadow-sm z-10 export-hide"
+                          className="absolute top-1 right-1 w-6 h-6 bg-white/80 hover:bg-blue-50 border border-gray-200 hover:border-blue-300 rounded-full flex items-center justify-center text-gray-400 hover:text-blue-600 transition-all duration-200 backdrop-blur-sm shadow-sm export-hide"
                           title="Añadir turno"
                         >
                           <Plus className="h-3 w-3" />

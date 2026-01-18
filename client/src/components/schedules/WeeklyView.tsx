@@ -1,6 +1,7 @@
 import { WeeklySchedule, Shift } from '../../services/shifts';
 import ShiftCard from './ShiftCard';
 import { Plus, Home } from 'lucide-react';
+import { useEmployeeStore } from '../../store/employeeStore';
 
 interface WeeklyViewProps {
   schedule: WeeklySchedule;
@@ -12,6 +13,8 @@ interface WeeklyViewProps {
 const daysOfWeek = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
 export default function WeeklyView({ schedule, onDeleteShift, onEditShift, onAddShift }: WeeklyViewProps) {
+  const { employees } = useEmployeeStore();
+  
   const parseTime = (timeStr: string): number => {
     const [hours, minutes] = timeStr.split(':').map(Number);
     return hours + minutes / 60;
@@ -91,42 +94,42 @@ export default function WeeklyView({ schedule, onDeleteShift, onEditShift, onAdd
   };
 
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
+    <div className="bg-gray-50/50 rounded-xl overflow-hidden shadow-lg backdrop-blur-sm">
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+        <table className="min-w-full border-collapse">
+          <thead>
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 z-10 min-w-[150px]">
+              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 sticky left-0 bg-gradient-to-b from-gray-50 to-white z-10 min-w-[150px] border-b-2 border-gray-200/60">
                 Empleado
               </th>
               {daysOfWeek.map((day, dayIndex) => (
                 <th
                   key={day}
-                  className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]"
+                  className="px-6 py-4 text-center text-sm font-semibold text-gray-700 min-w-[120px] bg-gradient-to-b from-gray-50 to-white border-b-2 border-gray-200/60"
                 >
                   <div className="flex flex-col items-center">
                     <div className="font-semibold">{day}</div>
-                    <div className="text-xs text-gray-500 font-normal mt-0.5">
+                    <div className="text-xs text-gray-400 font-normal mt-0.5">
                       {getFormattedDateForDay(dayIndex)}
                     </div>
                   </div>
                 </th>
               ))}
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700 bg-gradient-to-b from-gray-50 to-white border-b-2 border-gray-200/60">
                 Total hrs
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody>
             {schedule.employees.map((employee) => {
               const totalHours = calculateHours(employee.shifts);
               return (
-                <tr key={employee.employeeId} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 sticky left-0 bg-white z-10 border-r border-gray-200">
-                    <div className="text-sm font-medium text-gray-900">
+                <tr key={employee.employeeId} className="border-b border-gray-200/40">
+                  <td className="px-6 py-4 sticky left-0 bg-white/80 backdrop-blur-sm z-10 border-r border-gray-200/50 bg-gradient-to-r from-gray-50 to-white">
+                    <div className="text-sm font-medium text-gray-700">
                       {employee.employeeName}
                     </div>
-                    <div className="text-xs text-gray-500">{employee.employeePosition}</div>
+                    <div className="text-xs text-gray-400 mt-0.5">{employee.employeePosition}</div>
                   </td>
                   {daysOfWeek.map((day, dayIndex) => {
                     const dayShifts = getShiftsForDay(employee.shifts, dayIndex);
@@ -134,41 +137,39 @@ export default function WeeklyView({ schedule, onDeleteShift, onEditShift, onAdd
                     return (
                       <td
                         key={dayIndex}
-                        className={`px-2 py-2 align-top relative group transition-colors ${
+                        className={`px-4 py-3 align-top relative group transition-all duration-200 border border-gray-200/40 ${
                           !hasShifts 
-                            ? '' 
-                            : 'hover:bg-gray-50'
+                            ? 'bg-gray-50/40 backdrop-blur-sm' 
+                            : 'bg-white/60 backdrop-blur-sm hover:bg-gray-50/80'
                         }`}
-                        style={
-                          !hasShifts
-                            ? {
-                                background: 'repeating-linear-gradient(45deg, #fafafa, #fafafa 12px, #f5f5f5 12px, #f5f5f5 24px)',
-                              }
-                            : undefined
-                        }
                       >
                         {hasShifts ? (
-                          <div className="space-y-1.5">
-                            {dayShifts.map((shift, idx) => (
-                              <div key={shift.id}>
-                                <ShiftCard
-                                  shift={shift}
-                                  onDelete={onDeleteShift}
-                                  onEdit={onEditShift}
-                                />
-                              </div>
-                            ))}
+                          <div className="space-y-2">
+                            {dayShifts.map((shift, idx) => {
+                              // Buscar el empleado correspondiente al turno
+                              const shiftEmployee = employees.find((emp) => emp.id === shift.employeeId);
+                              return (
+                                <div key={shift.id} className="group">
+                                  <ShiftCard
+                                    shift={shift}
+                                    employee={shiftEmployee}
+                                    onDelete={onDeleteShift}
+                                    onEdit={onEditShift}
+                                  />
+                                </div>
+                              );
+                            })}
                           </div>
                         ) : (
-                          <div className="flex flex-col items-center justify-center py-2 px-3 text-xs text-gray-400">
-                            <Home className="h-4 w-4 mb-1" />
-                            <span className="text-[10px] font-medium">Libre</span>
+                          <div className="flex flex-col items-center justify-center py-4 px-3">
+                            <Home className="h-4 w-4 mb-1 text-gray-300" size={16} />
+                            <span className="text-xs font-normal text-gray-300">Libre</span>
                           </div>
                         )}
                         {onAddShift && (
                           <button
                             onClick={(e) => handleAddShift(e, employee.employeeId, dayIndex)}
-                            className="absolute top-1 right-1 w-6 h-6 flex items-center justify-center bg-blue-600 text-white rounded-full opacity-0 group-hover:opacity-100 hover:bg-blue-700 transition-all shadow-sm z-10 export-hide"
+                            className="absolute top-1 right-1 w-6 h-6 bg-white/80 hover:bg-blue-50 border border-gray-200 hover:border-blue-300 rounded-full flex items-center justify-center text-gray-400 hover:text-blue-600 transition-all duration-200 backdrop-blur-sm shadow-sm export-hide"
                             title="Añadir turno"
                           >
                             <Plus className="h-3 w-3" />
@@ -177,7 +178,7 @@ export default function WeeklyView({ schedule, onDeleteShift, onEditShift, onAdd
                       </td>
                     );
                   })}
-                  <td className="px-4 py-3 text-center text-sm font-medium text-gray-900">
+                  <td className="px-6 py-4 text-center text-sm font-medium text-gray-700 bg-white/60 backdrop-blur-sm border border-gray-200/40">
                     {totalHours}h
                   </td>
                 </tr>

@@ -287,23 +287,23 @@ export default function SchedulesPage() {
 
             {/* View Toggle */}
             <div className="flex items-center space-x-3">
-              <div className="flex items-center bg-gray-100 rounded-lg p-1">
+              <div className="flex items-center bg-gray-100/60 backdrop-blur-sm rounded-full p-1">
                 <button
                   onClick={() => setViewMode('employee')}
-                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                  className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-300 ${
                     viewMode === 'employee'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
+                      ? 'bg-white shadow-sm border border-gray-200 text-blue-600 font-semibold'
+                      : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
                   Por Empleado
                 </button>
                 <button
                   onClick={() => setViewMode('hourly')}
-                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                  className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-300 ${
                     viewMode === 'hourly'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
+                      ? 'bg-white shadow-sm border border-gray-200 text-blue-600 font-semibold'
+                      : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
                   Por Horario
@@ -312,7 +312,7 @@ export default function SchedulesPage() {
 
               <button
                 onClick={handleOpenModal}
-                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 export-hide"
+                className="flex items-center px-4 py-2 bg-blue-500/90 hover:bg-blue-600 backdrop-blur-sm text-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 export-hide"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Añadir Turno
@@ -321,7 +321,7 @@ export default function SchedulesPage() {
               <button
                 onClick={handleExportToImage}
                 disabled={isExporting || !weeklySchedule}
-                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed export-hide"
+                className="flex items-center px-4 py-2 bg-emerald-500/90 hover:bg-emerald-600 backdrop-blur-sm text-white rounded-lg shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 export-hide"
                 title="Exportar como imagen"
               >
                 <Camera className="h-4 w-4 mr-2" />
