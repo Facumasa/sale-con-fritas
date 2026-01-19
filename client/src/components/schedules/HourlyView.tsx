@@ -14,6 +14,7 @@ import { HourlySlot, getHourlySlots } from '../../constants/hourlySlots';
 import { useEmployeeStore } from '../../store/employeeStore';
 import DraggableEmployeeBadge from './DraggableEmployeeBadge';
 import DroppableSlot from './DroppableSlot';
+import EmployeeBadge from './EmployeeBadge';
 
 interface HourlyViewProps {
   schedule: WeeklySchedule;
@@ -52,29 +53,6 @@ export default function HourlyView({
       },
     })
   );
-
-  // Crear mapa de colores de empleados con estilos suaves
-  const getEmployeeBadgeStyle = (employeeId: string) => {
-    const employee = employees.find((emp) => emp.id === employeeId);
-    if (!employee) {
-      return 'bg-blue-50 border-blue-200 text-blue-700';
-    }
-
-    const color = employee.color || '#3b82f6';
-    
-    // Mapear colores comunes a estilos suaves
-    const colorMap: Record<string, string> = {
-      '#3b82f6': 'bg-blue-50 border-blue-200 text-blue-700',
-      '#10b981': 'bg-emerald-50 border-emerald-200 text-emerald-700',
-      '#f59e0b': 'bg-amber-50 border-amber-200 text-amber-700',
-      '#ef4444': 'bg-rose-50 border-rose-200 text-rose-700',
-      '#ec4899': 'bg-pink-50 border-pink-200 text-pink-700',
-      '#8b5cf6': 'bg-purple-50 border-purple-200 text-purple-700',
-      '#06b6d4': 'bg-cyan-50 border-cyan-200 text-cyan-700',
-    };
-
-    return colorMap[color.toLowerCase()] || 'bg-blue-50 border-blue-200 text-blue-700';
-  };
 
   // Función para obtener fecha de un día de la semana
   const getDateForDay = (dayIndex: number): Date => {
@@ -399,7 +377,6 @@ export default function HourlyView({
                       {employeesInSlot.length > 0 ? (
                         <div className="space-y-2">
                           {employeesInSlot.map(({ shift, employeeName, employeeId }) => {
-                            const badgeStyle = getEmployeeBadgeStyle(employeeId);
                             const employee = employees.find((e) => e.id === employeeId);
                             const employeeColor = employee?.color || '#3b82f6';
 
@@ -409,7 +386,6 @@ export default function HourlyView({
                                 shift={shift}
                                 employeeName={employeeName}
                                 employeeColor={employeeColor}
-                                badgeStyle={badgeStyle}
                                 onClick={handleEmployeeBadgeClick}
                               />
                             );
@@ -437,20 +413,16 @@ export default function HourlyView({
       </div>
     </div>
 
-    <DragOverlay>
-      {activeShift ? (
-        <div
-          className="px-3 py-1.5 rounded-full text-sm font-medium shadow-lg opacity-90 backdrop-blur-sm border"
-          style={{
-            backgroundColor: `${activeShift.employeeColor}40`,
-            borderColor: activeShift.employeeColor,
-            color: '#1f2937',
-          }}
-        >
-          {activeShift.employeeName}
-        </div>
-      ) : null}
-    </DragOverlay>
+      <DragOverlay>
+        {activeShift ? (
+          <EmployeeBadge
+            employeeName={activeShift.employeeName}
+            employeeColor={activeShift.employeeColor}
+            draggable={true}
+            className="shadow-lg opacity-90"
+          />
+        ) : null}
+      </DragOverlay>
     </DndContext>
   );
 }
