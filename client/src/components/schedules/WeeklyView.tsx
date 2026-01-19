@@ -1,6 +1,6 @@
 import { WeeklySchedule, Shift } from '../../services/shifts';
 import ShiftCard from './ShiftCard';
-import { Plus } from 'lucide-react';
+import { Plus, Home } from 'lucide-react';
 import { useEmployeeStore } from '../../store/employeeStore';
 
 interface WeeklyViewProps {
@@ -137,9 +137,9 @@ export default function WeeklyView({ schedule, onDeleteShift, onEditShift, onAdd
                     return (
                       <td
                         key={dayIndex}
-                        className={`px-4 py-3 align-top relative group transition-all duration-300 ease-out border border-gray-200/30 ${
+                        className={`px-4 py-3 align-top relative group transition-all duration-200 border border-gray-200/40 ${
                           !hasShifts 
-                            ? 'bg-gray-50/20 backdrop-blur-sm' 
+                            ? 'bg-gray-50/40 backdrop-blur-sm' 
                             : 'bg-white/60 backdrop-blur-sm hover:bg-gray-50/80'
                         }`}
                       >
@@ -161,60 +161,30 @@ export default function WeeklyView({ schedule, onDeleteShift, onEditShift, onAdd
                             })}
                           </div>
                         ) : (
-                          <div className="relative overflow-hidden min-h-[60px] transition-all duration-300 ease-out hover:bg-gradient-to-br hover:from-blue-50/10 hover:to-purple-50/10 hover:shadow-inner group">
-                            {/* Patrón de rayas diagonales sutiles */}
-                            <div 
-                              className="absolute inset-0 opacity-30"
-                              style={{
-                                backgroundImage: `repeating-linear-gradient(
-                                  135deg,
-                                  transparent,
-                                  transparent 15px,
-                                  rgba(229, 231, 235, 0.3) 15px,
-                                  rgba(229, 231, 235, 0.3) 16px
-                                )`
-                              }}
-                            />
+                          <div className="bg-gray-50/40 backdrop-blur-sm min-h-[60px] 
+                                         flex flex-col items-center justify-center gap-1
+                                         rounded">
+                            {/* Icono de casita */}
+                            <Home size={16} className="text-gray-300" />
                             
-                            {/* Overlay con gradiente sutil */}
-                            <div 
-                              className="absolute inset-0 bg-gradient-to-br from-gray-50/40 to-transparent transition-opacity duration-300 group-hover:opacity-60"
-                            />
-                            
-                            {/* Contenido */}
-                            <div className="relative z-10 flex flex-col items-center justify-center min-h-[60px] gap-1 animate-fade-in">
-                              {/* Icono minimalista - tres líneas horizontales */}
-                              <div className="flex flex-col gap-1 transition-transform duration-300 group-hover:scale-110">
-                                <div className="w-8 h-0.5 bg-gray-300/40 rounded-full transition-colors duration-300 group-hover:bg-gray-300/60"/>
-                                <div className="w-8 h-0.5 bg-gray-300/40 rounded-full transition-colors duration-300 group-hover:bg-gray-300/60"/>
-                                <div className="w-8 h-0.5 bg-gray-300/40 rounded-full transition-colors duration-300 group-hover:bg-gray-300/60"/>
-                              </div>
-                              
-                              {/* Texto sutil */}
-                              <span className="text-xs font-medium text-gray-300/90 tracking-wide transition-colors duration-300 group-hover:text-gray-400">
-                                Libre
-                              </span>
-                            </div>
+                            {/* Texto "Libre" */}
+                            <span className="text-xs text-gray-300">Libre</span>
                           </div>
                         )}
                         {onAddShift && (
                           <button
                             onClick={(e) => handleAddShift(e, employee.employeeId, dayIndex)}
-                            className={`absolute top-2 right-2 w-6 h-6 rounded-full
-                                       bg-white/80 backdrop-blur-sm border border-gray-200
+                            className={`absolute top-2 right-2 opacity-0 group-hover:opacity-100
+                                       transition-opacity duration-200
+                                       w-6 h-6 rounded-full
+                                       bg-white/80 backdrop-blur-sm
+                                       border border-gray-200
                                        flex items-center justify-center
-                                       shadow-sm export-hide
-                                       transition-all duration-300 ease-out
-                                       ${
-                                         !hasShifts
-                                           ? 'opacity-0 group-hover:opacity-100'
-                                           : ''
-                                       }
-                                       hover:bg-blue-50 hover:border-blue-300 hover:scale-110
-                                       hover:shadow-md`}
+                                       hover:bg-blue-50 hover:border-blue-300
+                                       shadow-sm export-hide`}
                             title="Añadir turno"
                           >
-                            <Plus size={14} className="text-gray-400 transition-colors duration-300 hover:text-blue-600" />
+                            <Plus size={14} className="text-gray-400 hover:text-blue-600" />
                           </button>
                         )}
                       </td>
