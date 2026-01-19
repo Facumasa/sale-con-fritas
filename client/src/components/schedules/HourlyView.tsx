@@ -1,8 +1,19 @@
-import { useMemo } from 'react';
+import { useState } from 'react';
 import { Plus, Settings } from 'lucide-react';
-import { WeeklySchedule, Shift } from '../../services/shifts';
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  useSensor,
+  useSensors,
+  PointerSensor,
+} from '@dnd-kit/core';
+import { WeeklySchedule, Shift, shiftService } from '../../services/shifts';
 import { HourlySlot, getHourlySlots } from '../../constants/hourlySlots';
 import { useEmployeeStore } from '../../store/employeeStore';
+import DraggableEmployeeBadge from './DraggableEmployeeBadge';
+import DroppableSlot from './DroppableSlot';
 
 interface HourlyViewProps {
   schedule: WeeklySchedule;
@@ -10,14 +21,37 @@ interface HourlyViewProps {
   onDeleteShift?: (id: string) => void;
   onAddShift?: (date: string, startTime: string, endTime: string) => void;
   onConfigSlots?: () => void;
+  onRefreshSchedule?: () => void;
 }
 
 const daysOfWeek = ['LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO', 'DOMINGO'];
 
-export default function HourlyView({ schedule, onEditShift, onDeleteShift, onAddShift, onConfigSlots }: HourlyViewProps) {
+export default function HourlyView({
+  schedule,
+  onEditShift,
+  onDeleteShift,
+  onAddShift,
+  onConfigSlots,
+  onRefreshSchedule,
+}: HourlyViewProps) {
   const { employees } = useEmployeeStore();
+  const [activeShift, setActiveShift] = useState<{
+    shift: Shift;
+    employeeName: string;
+    employeeColor: string;
+  } | null>(null);
+
   // Obtener slots directamente sin memo para que se actualice cuando cambien
   const hourlySlots = getHourlySlots();
+
+  // Configurar sensores de dnd-kit
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Mover 8px antes de iniciar drag
+      },
+    })
+  );
 
   // Crear mapa de colores de empleados con estilos suaves
   const getEmployeeBadgeStyle = (employeeId: string) => {
@@ -158,7 +192,157 @@ export default function HourlyView({ schedule, onEditShift, onDeleteShift, onAdd
     return `${day}/${month}`;
   };
 
+  // Calcular fecha ISO desde el índice del día
+  const calculateDateFromDay = (dayIndex: number): string => {
+    return formatDateString(getDateForDay(dayIndex));
+  };
+
+  // Validar si hay conflicto de horarios
+  const hasConflictingShift = (
+    employeeId: string,
+    date: string,
+    startTime: string,
+    endTime: string,
+    excludeShiftId?: string
+  ): boolean => {
+    const shiftsForDay = getShiftsForDay(
+      daysOfWeek.findIndex((_, idx) => calculateDateFromDay(idx) === date)
+    );
+
+    const newStart = timeToMinutes(startTime);
+    let newEnd = timeToMinutes(endTime);
+    if (newEnd < newStart) newEnd += 24 * 60;
+
+    return shiftsForDay.some((shift) => {
+      // Excluir el turno que se está moviendo
+      if (excludeShiftId && shift.id === excludeShiftId) return false;
+      if (shift.employeeId !== employeeId) return false;
+
+      const shiftStart = timeToMinutes(shift.startTime);
+      let shiftEnd = timeToMinutes(shift.endTime);
+      if (shiftEnd < shiftStart) shiftEnd += 24 * 60;
+
+      // Verificar solapamiento
+      return newStart < shiftEnd && shiftStart < newEnd;
+    });
+  };
+
+  // Manejar inicio del drag
+  const handleDragStart = (event: DragStartEvent) => {
+    const shiftId = event.active.id as string;
+    // Encontrar el turno y la información del empleado
+    let foundShift: Shift | null = null;
+    let foundEmployee: { name: string; color: string } | null = null;
+
+    schedule.employees.forEach((employeeShift) => {
+      const shift = employeeShift.shifts.find((s) => s.id === shiftId);
+      if (shift) {
+        foundShift = shift;
+        const employee = employees.find((e) => e.id === shift.employeeId);
+        foundEmployee = {
+          name: employeeShift.employeeName,
+          color: employee?.color || '#3b82f6',
+        };
+      }
+    });
+
+    if (foundShift && foundEmployee) {
+      setActiveShift({
+        shift: foundShift,
+        employeeName: foundEmployee.name,
+        employeeColor: foundEmployee.color,
+      });
+    }
+  };
+
+  // Manejar fin del drag
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    setActiveShift(null);
+
+    if (!over) return;
+
+    const shiftId = active.id as string;
+    const overId = over.id as string;
+
+    // over.id tiene el formato "day-slot" donde slot es "startTime-endTime"
+    // Extraer día y slot
+    const parts = overId.split('-');
+    if (parts.length < 2) return;
+
+    // El día está en la primera parte (índice 0-6)
+    const dayIndex = parseInt(parts[0]);
+    if (isNaN(dayIndex) || dayIndex < 0 || dayIndex >= daysOfWeek.length) return;
+
+    // El slot está en el resto de las partes (puede contener "-" en las horas)
+    // Necesitamos encontrar dónde termina el día y empieza el slot
+    // Por ejemplo: "0-12:00-16:00" -> dayIndex=0, slot="12:00-16:00"
+    const slotParts = parts.slice(1);
+    const slotString = slotParts.join('-'); // "12:00-16:00"
+
+    // Parsear el slot para obtener startTime y endTime
+    const [newStartTime, newEndTime] = slotString.split('-');
+    if (!newStartTime || !newEndTime) return;
+
+    // Encontrar el turno original
+    let originalShift: Shift | null = null;
+    schedule.employees.forEach((employeeShift) => {
+      const shift = employeeShift.shifts.find((s) => s.id === shiftId);
+      if (shift) {
+        originalShift = shift;
+      }
+    });
+
+    if (!originalShift) return;
+
+    // Calcular nueva fecha
+    const newDate = calculateDateFromDay(dayIndex);
+
+    // Validar que no haya conflicto de horarios
+    if (
+      hasConflictingShift(
+        originalShift.employeeId,
+        newDate,
+        newStartTime,
+        newEndTime,
+        shiftId
+      )
+    ) {
+      alert('Error: El empleado ya tiene un turno en ese horario');
+      return;
+    }
+
+    // Actualizar el turno
+    try {
+      await shiftService.update(shiftId, {
+        date: newDate,
+        startTime: newStartTime,
+        endTime: newEndTime,
+      });
+
+      // Refrescar datos
+      if (onRefreshSchedule) {
+        onRefreshSchedule();
+      }
+
+      // Mostrar mensaje de éxito
+      // Usar alert temporalmente hasta que se implemente un sistema de toast
+      console.log('Turno movido correctamente');
+    } catch (error: any) {
+      console.error('Error al mover turno:', error);
+      alert(
+        error.response?.data?.error || 'Error al mover turno. Por favor, inténtalo de nuevo.'
+      );
+    }
+  };
+
   return (
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
     <div className="bg-gray-50/50 rounded-xl overflow-hidden shadow-lg backdrop-blur-sm">
       <div className="overflow-x-auto">
         <table className="min-w-full border-collapse">
@@ -205,28 +389,29 @@ export default function HourlyView({ schedule, onEditShift, onDeleteShift, onAdd
                 </td>
                 {daysOfWeek.map((_, dayIndex) => {
                   const employeesInSlot = getEmployeesForSlot(dayIndex, slot);
+                  const slotId = `${dayIndex}-${slot.startTime}-${slot.endTime}`;
                   return (
-                    <td
+                    <DroppableSlot
                       key={dayIndex}
-                      className={`px-4 py-3 align-top relative group transition-all duration-200 border border-gray-200/40 min-h-[60px] ${
-                        employeesInSlot.length === 0 
-                          ? 'bg-gray-50/40 backdrop-blur-sm' 
-                          : 'bg-white/60 backdrop-blur-sm hover:bg-gray-50/80'
-                      }`}
+                      id={slotId}
+                      isEmpty={employeesInSlot.length === 0}
                     >
                       {employeesInSlot.length > 0 ? (
                         <div className="space-y-2">
                           {employeesInSlot.map(({ shift, employeeName, employeeId }) => {
                             const badgeStyle = getEmployeeBadgeStyle(employeeId);
+                            const employee = employees.find((e) => e.id === employeeId);
+                            const employeeColor = employee?.color || '#3b82f6';
+
                             return (
-                              <div
+                              <DraggableEmployeeBadge
                                 key={shift.id}
-                                onClick={() => handleEmployeeBadgeClick(shift)}
-                                className={`inline-block px-3 py-1.5 rounded-full text-sm font-medium cursor-pointer backdrop-blur-sm bg-opacity-60 border shadow-sm hover:shadow-md transition-all duration-200 ${badgeStyle}`}
-                                title={`${employeeName} - ${shift.startTime} a ${shift.endTime}`}
-                              >
-                                {employeeName}
-                              </div>
+                                shift={shift}
+                                employeeName={employeeName}
+                                employeeColor={employeeColor}
+                                badgeStyle={badgeStyle}
+                                onClick={handleEmployeeBadgeClick}
+                              />
                             );
                           })}
                         </div>
@@ -242,7 +427,7 @@ export default function HourlyView({ schedule, onEditShift, onDeleteShift, onAdd
                           <Plus className="h-3 w-3" />
                         </button>
                       )}
-                    </td>
+                    </DroppableSlot>
                   );
                 })}
               </tr>
@@ -251,5 +436,21 @@ export default function HourlyView({ schedule, onEditShift, onDeleteShift, onAdd
         </table>
       </div>
     </div>
+
+    <DragOverlay>
+      {activeShift ? (
+        <div
+          className="px-3 py-1.5 rounded-full text-sm font-medium shadow-lg opacity-90 backdrop-blur-sm border"
+          style={{
+            backgroundColor: `${activeShift.employeeColor}40`,
+            borderColor: activeShift.employeeColor,
+            color: '#1f2937',
+          }}
+        >
+          {activeShift.employeeName}
+        </div>
+      ) : null}
+    </DragOverlay>
+    </DndContext>
   );
 }

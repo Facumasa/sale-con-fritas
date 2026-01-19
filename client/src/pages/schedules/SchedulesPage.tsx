@@ -347,6 +347,7 @@ export default function SchedulesPage() {
                   onDeleteShift={handleDeleteShift}
                   onAddShift={handleAddShiftFromHourlyView}
                   onConfigSlots={() => setIsSlotsConfigModalOpen(true)}
+                  onRefreshSchedule={() => fetchWeekly(currentWeek, currentYear)}
                 />
               )
             ) : (
