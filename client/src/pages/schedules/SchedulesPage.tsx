@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Settings, Camera } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Settings, Camera, Sparkles } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { useShiftStore } from '../../store/shiftStore';
 import { useEmployeeStore } from '../../store/employeeStore';
@@ -9,14 +9,16 @@ import HourlyView from '../../components/schedules/HourlyView';
 import HourSlotsConfigModal from '../../components/schedules/HourSlotsConfigModal';
 import EmployeesTab from '../../components/schedules/EmployeesTab';
 import AddShiftModal from '../../components/schedules/AddShiftModal';
+import AIAssistantModal from '../../components/ai/AIAssistantModal';
 import { Shift, CreateShiftRequest, UpdateShiftRequest } from '../../services/shifts';
-import { HourlySlot } from '../../constants/hourlySlots';
+import { HourlySlot, getHourlySlots } from '../../constants/hourlySlots';
 
 export default function SchedulesPage() {
   const [activeTab, setActiveTab] = useState<'schedule' | 'employees'>('schedule');
   const [viewMode, setViewMode] = useState<'employee' | 'hourly'>('employee');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSlotsConfigModalOpen, setIsSlotsConfigModalOpen] = useState(false);
+  const [showAIAssistant, setShowAIAssistant] = useState(false);
   const [editingShift, setEditingShift] = useState<Shift | null>(null);
 
   const { weeklySchedule, currentWeek, currentYear, fetchWeekly, addShift, updateShift, deleteShift, setWeek } =
@@ -311,6 +313,14 @@ export default function SchedulesPage() {
               </div>
 
               <button
+                onClick={() => setShowAIAssistant(true)}
+                className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 backdrop-blur-sm text-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 export-hide"
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                Asistente IA
+              </button>
+
+              <button
                 onClick={handleOpenModal}
                 className="flex items-center px-4 py-2 bg-blue-500/90 hover:bg-blue-600 backdrop-blur-sm text-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 export-hide"
               >
@@ -383,6 +393,15 @@ export default function SchedulesPage() {
             fetchWeekly(currentWeek, currentYear);
           }
         }}
+      />
+
+      {/* AI Assistant Modal */}
+      <AIAssistantModal
+        isOpen={showAIAssistant}
+        onClose={() => setShowAIAssistant(false)}
+        currentWeek={currentWeek}
+        currentYear={currentYear}
+        hourlySlots={getHourlySlots().map(slot => `${slot.startTime}-${slot.endTime}`)}
       />
     </div>
   );
