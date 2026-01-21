@@ -1,4 +1,4 @@
-import { X, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { ReactNode } from 'react';
 
 interface EmployeeBadgeProps {
@@ -65,13 +65,14 @@ export default function EmployeeBadge({
           className="absolute -top-1 -right-1 
                      opacity-0 group-hover:opacity-100
                      transition-opacity duration-200
-                     bg-red-500 hover:bg-red-600
-                     text-white rounded-full
-                     w-5 h-5 flex items-center justify-center
+                     bg-white/90 hover:bg-red-50
+                     border border-gray-200
+                     rounded-full
+                     w-6 h-6 flex items-center justify-center
                      shadow-sm z-10"
           title="Eliminar turno"
         >
-          <X size={12} />
+          <Trash2 size={14} className="text-gray-400 hover:text-red-500" />
         </button>
       )}
     </div>
