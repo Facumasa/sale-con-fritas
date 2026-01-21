@@ -7,6 +7,7 @@ interface DraggableEmployeeBadgeProps {
   employeeName: string;
   employeeColor: string;
   onClick?: (shift: Shift) => void;
+  onDelete?: (shiftId: string) => void;
 }
 
 export default function DraggableEmployeeBadge({
@@ -14,6 +15,7 @@ export default function DraggableEmployeeBadge({
   employeeName,
   employeeColor,
   onClick,
+  onDelete,
 }: DraggableEmployeeBadgeProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: shift.id,
@@ -22,6 +24,12 @@ export default function DraggableEmployeeBadge({
   const handleClick = () => {
     if (onClick && !isDragging) {
       onClick(shift);
+    }
+  };
+
+  const handleDelete = () => {
+    if (onDelete && !isDragging) {
+      onDelete(shift.id);
     }
   };
 
@@ -37,6 +45,7 @@ export default function DraggableEmployeeBadge({
         employeeColor={employeeColor}
         draggable={true}
         onClick={handleClick}
+        onDelete={onDelete ? handleDelete : undefined}
         className="mb-1"
       />
     </div>

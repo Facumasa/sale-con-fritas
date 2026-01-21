@@ -149,6 +149,64 @@ export default function HourlyView({
     }
   };
 
+  const handleDeleteShift = async (shiftId: string) => {
+    // Encontrar el turno para mostrar información en la confirmación
+    let shiftToDelete: Shift | null = null;
+    let employeeName = 'empleado';
+    let dayName = '';
+    let timeSlot = '';
+
+    schedule.employees.forEach((employeeShift) => {
+      const shift = employeeShift.shifts.find((s) => s.id === shiftId);
+      if (shift) {
+        shiftToDelete = shift;
+        employeeName = employeeShift.employeeName;
+        
+        // Obtener el día de la semana
+        const shiftDate = new Date(shift.date);
+        const dayIndex = shiftDate.getDay();
+        const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+        dayName = dayNames[dayIndex];
+        
+        // Obtener el slot de tiempo
+        timeSlot = `${shift.startTime} - ${shift.endTime}`;
+      }
+    });
+
+    if (!shiftToDelete) {
+      console.error('Turno no encontrado');
+      return;
+    }
+
+    // Mostrar confirmación
+    const confirmMessage = `¿Eliminar turno de ${employeeName} el ${dayName} (${timeSlot})?`;
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      // Llamar a la API para eliminar
+      if (onDeleteShift) {
+        await onDeleteShift(shiftId);
+      } else {
+        // Si no hay callback, usar el servicio directamente
+        await shiftService.delete(shiftId);
+      }
+
+      // Refrescar la vista
+      if (onRefreshSchedule) {
+        onRefreshSchedule();
+      }
+
+      // Mostrar mensaje de éxito
+      console.log('Turno eliminado correctamente');
+    } catch (error: any) {
+      console.error('Error al eliminar turno:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Error al eliminar turno. Por favor, inténtalo de nuevo.';
+      alert(errorMessage);
+    }
+  };
+
   const handleAddShiftClick = (e: React.MouseEvent, dayIndex: number, slot: HourlySlot) => {
     e.stopPropagation();
     if (onAddShift) {
@@ -387,6 +445,7 @@ export default function HourlyView({
                                 employeeName={employeeName}
                                 employeeColor={employeeColor}
                                 onClick={handleEmployeeBadgeClick}
+                                onDelete={handleDeleteShift}
                               />
                             );
                           })}

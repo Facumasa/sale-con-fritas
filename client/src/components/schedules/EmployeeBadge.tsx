@@ -35,34 +35,43 @@ export default function EmployeeBadge({
   const defaultTextSize = hasCustomTextSize ? '' : 'text-sm';
   
   return (
-    <div
-      className={`inline-flex items-center px-3 py-1.5 rounded-full
-                  font-medium ${defaultTextSize}
-                  backdrop-blur-sm border
-                  transition-all duration-200
-                  ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}
-                  ${onClick ? 'cursor-pointer hover:shadow-md hover:scale-105' : ''}
-                  ${onDelete ? 'pr-2' : ''}
-                  ${className}`}
-      style={{
-        backgroundColor: hexToRgba(color, 0.2), // 20% de opacidad
-        borderColor: hexToRgba(color, 0.6), // 60% de opacidad
-        color: color, // Color del texto sólido
-      }}
-      onClick={onClick}
-    >
-      <span className="font-semibold whitespace-nowrap">{employeeName}</span>
-      {children}
+    <div className="relative group inline-block">
+      <div
+        className={`inline-flex items-center px-3 py-1.5 rounded-full
+                    font-medium ${defaultTextSize}
+                    backdrop-blur-sm border
+                    transition-all duration-200
+                    ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}
+                    ${onClick ? 'cursor-pointer hover:shadow-md hover:scale-105' : ''}
+                    ${className}`}
+        style={{
+          backgroundColor: hexToRgba(color, 0.2), // 20% de opacidad
+          borderColor: hexToRgba(color, 0.6), // 60% de opacidad
+          color: color, // Color del texto sólido
+        }}
+        onClick={onClick}
+      >
+        <span className="font-semibold whitespace-nowrap">{employeeName}</span>
+        {children}
+      </div>
 
+      {/* Botón eliminar - aparece al hover */}
       {onDelete && (
         <button
           onClick={(e) => {
             e.stopPropagation();
             onDelete();
           }}
-          className="ml-2 hover:bg-white/50 rounded-full p-0.5 transition-colors"
+          className="absolute -top-1 -right-1 
+                     opacity-0 group-hover:opacity-100
+                     transition-opacity duration-200
+                     bg-red-500 hover:bg-red-600
+                     text-white rounded-full
+                     w-5 h-5 flex items-center justify-center
+                     shadow-sm z-10"
+          title="Eliminar turno"
         >
-          <X size={14} className="text-gray-400 hover:text-red-500" />
+          <X size={12} />
         </button>
       )}
     </div>
