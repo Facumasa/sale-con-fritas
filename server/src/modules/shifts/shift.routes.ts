@@ -7,6 +7,9 @@ const router = Router();
 // Todas las rutas requieren autenticación
 router.use(authenticateToken);
 
+// GET /shifts - Obtener todos los turnos
+router.get('/', shiftController.getAll.bind(shiftController));
+
 // GET /shifts/weekly?week=1&year=2024 - Horario semanal
 router.get('/weekly', shiftController.getWeeklySchedule.bind(shiftController));
 

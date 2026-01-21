@@ -438,6 +438,61 @@ class ShiftController {
   }
 
   /**
+   * GET /shifts - Obtener todos los turnos del restaurante
+   */
+  async getAll(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const userId = req.userId;
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          error: 'No autenticado',
+        });
+        return;
+      }
+
+      const restaurantId = await this.getUserRestaurantId(userId);
+      if (!restaurantId) {
+        res.status(403).json({
+          success: false,
+          error: 'Usuario no tiene acceso a ningún restaurante',
+        });
+        return;
+      }
+
+      const shifts = await prisma.shift.findMany({
+        where: {
+          restaurantId,
+        },
+        include: {
+          employee: {
+            select: {
+              id: true,
+              name: true,
+              position: true,
+              color: true,
+            },
+          },
+        },
+        orderBy: {
+          date: 'asc',
+        },
+      });
+
+      res.status(200).json({
+        success: true,
+        data: shifts,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error al obtener turnos';
+      res.status(500).json({
+        success: false,
+        error: message,
+      });
+    }
+  }
+
+  /**
    * DELETE /shifts/:id - Eliminar turno
    */
   async delete(req: AuthRequest, res: Response): Promise<void> {

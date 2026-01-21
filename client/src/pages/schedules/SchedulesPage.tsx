@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Settings, Camera } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Settings, Camera, Copy, Trash2, Download } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { useShiftStore } from '../../store/shiftStore';
 import { useEmployeeStore } from '../../store/employeeStore';
@@ -9,8 +9,9 @@ import HourlyView from '../../components/schedules/HourlyView';
 import HourSlotsConfigModal from '../../components/schedules/HourSlotsConfigModal';
 import EmployeesTab from '../../components/schedules/EmployeesTab';
 import AddShiftModal from '../../components/schedules/AddShiftModal';
-import { Shift, CreateShiftRequest, UpdateShiftRequest } from '../../services/shifts';
+import { Shift, CreateShiftRequest, UpdateShiftRequest, shiftService } from '../../services/shifts';
 import { HourlySlot } from '../../constants/hourlySlots';
+import { exportAllWeeksToExcel } from '../../services/export';
 
 export default function SchedulesPage() {
   const [activeTab, setActiveTab] = useState<'schedule' | 'employees'>('schedule');
@@ -128,6 +129,212 @@ export default function SchedulesPage() {
     setPreselectedDate(undefined);
     setPreselectedStartTime(undefined);
     setPreselectedEndTime(undefined);
+  };
+
+  const handleCopyPreviousWeek = async () => {
+    const previousWeek = currentWeek - 1;
+    let previousYear = currentYear;
+    
+    // Manejar cambio de año
+    if (previousWeek < 1) {
+      previousYear = currentYear - 1;
+      const weeksInPrevYear = getWeeksInYear(previousYear);
+      const actualPrevWeek = weeksInPrevYear;
+      
+      const confirmed = window.confirm(
+        `¿Copiar todos los turnos de la semana ${actualPrevWeek} del año ${previousYear} a la semana ${currentWeek} del año ${currentYear}?\n\n` +
+        'Esto NO borrará los turnos existentes en esta semana, solo añadirá los nuevos.'
+      );
+      
+      if (!confirmed) return;
+      
+      try {
+        const previousSchedule = await shiftService.getWeekly(actualPrevWeek, previousYear);
+        
+        if (!previousSchedule || !previousSchedule.employees || previousSchedule.employees.length === 0) {
+          alert('No hay turnos en la semana anterior para copiar.');
+          return;
+        }
+        
+        // Calcular diferencia de días entre semanas
+        const currentWeekStart = getWeekStartDate(currentWeek, currentYear);
+        const previousWeekStart = getWeekStartDate(actualPrevWeek, previousYear);
+        const daysDifference = Math.round((currentWeekStart.getTime() - previousWeekStart.getTime()) / (1000 * 60 * 60 * 24));
+        
+        // Recopilar todos los turnos de la semana anterior
+        const allPreviousShifts: Shift[] = [];
+        previousSchedule.employees.forEach((emp) => {
+          emp.shifts.forEach((shift) => {
+            if (shift.type !== 'OFF') {
+              allPreviousShifts.push(shift);
+            }
+          });
+        });
+        
+        if (allPreviousShifts.length === 0) {
+          alert('No hay turnos en la semana anterior para copiar.');
+          return;
+        }
+        
+        // Crear nuevos turnos ajustando las fechas
+        const newShifts = allPreviousShifts.map((shift) => {
+          const oldDate = new Date(shift.date);
+          const newDate = new Date(oldDate);
+          newDate.setDate(oldDate.getDate() + daysDifference);
+          
+          return {
+            employeeId: shift.employeeId,
+            date: newDate.toISOString().split('T')[0],
+            startTime: shift.startTime,
+            endTime: shift.endTime,
+            type: shift.type,
+            notes: shift.notes || undefined,
+          };
+        });
+        
+        // Crear todos los turnos en batch
+        await shiftService.bulkCreate(newShifts);
+        
+        // Refrescar vista
+        await fetchWeekly(currentWeek, currentYear);
+        
+        alert(`✓ Se copiaron ${newShifts.length} turnos de la semana ${actualPrevWeek} del año ${previousYear} a la semana ${currentWeek} del año ${currentYear}`);
+      } catch (error: any) {
+        console.error('Error copying previous week:', error);
+        const errorMessage = error.response?.data?.error || error.message || 'Error al copiar la semana. Inténtalo de nuevo.';
+        alert(errorMessage);
+      }
+      
+      return;
+    }
+    
+    const confirmed = window.confirm(
+      `¿Copiar todos los turnos de la semana ${previousWeek} a la semana ${currentWeek}?\n\n` +
+      'Esto NO borrará los turnos existentes en esta semana, solo añadirá los nuevos.'
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+      const previousSchedule = await shiftService.getWeekly(previousWeek, previousYear);
+      
+      if (!previousSchedule || !previousSchedule.employees || previousSchedule.employees.length === 0) {
+        alert('No hay turnos en la semana anterior para copiar.');
+        return;
+      }
+      
+      // Calcular diferencia de días entre semanas (7 días)
+      const currentWeekStart = getWeekStartDate(currentWeek, currentYear);
+      const previousWeekStart = getWeekStartDate(previousWeek, previousYear);
+      const daysDifference = Math.round((currentWeekStart.getTime() - previousWeekStart.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Recopilar todos los turnos de la semana anterior
+      const allPreviousShifts: Shift[] = [];
+      previousSchedule.employees.forEach((emp) => {
+        emp.shifts.forEach((shift) => {
+          if (shift.type !== 'OFF') {
+            allPreviousShifts.push(shift);
+          }
+        });
+      });
+      
+      if (allPreviousShifts.length === 0) {
+        alert('No hay turnos en la semana anterior para copiar.');
+        return;
+      }
+      
+      // Crear nuevos turnos ajustando las fechas
+      const newShifts = allPreviousShifts.map((shift) => {
+        const oldDate = new Date(shift.date);
+        const newDate = new Date(oldDate);
+        newDate.setDate(oldDate.getDate() + daysDifference);
+        
+        return {
+          employeeId: shift.employeeId,
+          date: newDate.toISOString().split('T')[0],
+          startTime: shift.startTime,
+          endTime: shift.endTime,
+          type: shift.type,
+          notes: shift.notes || undefined,
+        };
+      });
+      
+      // Crear todos los turnos en batch
+      await shiftService.bulkCreate(newShifts);
+      
+      // Refrescar vista
+      await fetchWeekly(currentWeek, currentYear);
+      
+      alert(`✓ Se copiaron ${newShifts.length} turnos de la semana ${previousWeek} a la semana ${currentWeek}`);
+    } catch (error: any) {
+      console.error('Error copying previous week:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Error al copiar la semana. Inténtalo de nuevo.';
+      alert(errorMessage);
+    }
+  };
+
+  const handleDeleteAllShifts = async () => {
+    // Primera confirmación
+    const confirmed = window.confirm(
+      `¿Estás seguro de que quieres eliminar TODOS los turnos de la semana ${currentWeek}?`
+    );
+    
+    if (!confirmed) return;
+    
+    // Segunda confirmación (más seria)
+    const doubleConfirmed = window.confirm(
+      '⚠️ ESTA ACCIÓN NO SE PUEDE DESHACER ⚠️\n\n' +
+      'Se eliminarán permanentemente todos los turnos de esta semana.\n\n' +
+      '¿Estás COMPLETAMENTE seguro?'
+    );
+    
+    if (!doubleConfirmed) return;
+    
+    try {
+      if (!weeklySchedule || !weeklySchedule.employees) {
+        alert('No hay turnos para eliminar en esta semana.');
+        return;
+      }
+      
+      // Recopilar todos los turnos de la semana actual
+      const allShifts: Shift[] = [];
+      weeklySchedule.employees.forEach((emp) => {
+        emp.shifts.forEach((shift) => {
+          if (shift.type !== 'OFF') {
+            allShifts.push(shift);
+          }
+        });
+      });
+      
+      if (allShifts.length === 0) {
+        alert('No hay turnos para eliminar en esta semana.');
+        return;
+      }
+      
+      // Eliminar todos uno por uno
+      const deletePromises = allShifts.map((shift) => shiftService.delete(shift.id));
+      
+      await Promise.all(deletePromises);
+      
+      // Refrescar vista
+      await fetchWeekly(currentWeek, currentYear);
+      
+      alert(`✓ Se eliminaron ${allShifts.length} turnos de la semana ${currentWeek}`);
+    } catch (error: any) {
+      console.error('Error deleting all shifts:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Error al eliminar los turnos. Inténtalo de nuevo.';
+      alert(errorMessage);
+    }
+  };
+
+  const getWeekStartDate = (week: number, year: number): Date => {
+    const jan1 = new Date(year, 0, 1);
+    const daysOffset = (jan1.getDay() + 6) % 7; // Ajustar para que lunes = 0
+    const firstMonday = new Date(jan1);
+    firstMonday.setDate(jan1.getDate() - daysOffset);
+    const weekMonday = new Date(firstMonday);
+    weekMonday.setDate(firstMonday.getDate() + (week - 1) * 7);
+    return weekMonday;
   };
 
   const handleExportToImage = async () => {
@@ -283,6 +490,17 @@ export default function SchedulesPage() {
               >
                 <ChevronRight className="h-5 w-5" />
               </button>
+              
+              <button
+                onClick={handleCopyPreviousWeek}
+                className="px-4 py-2 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg
+                           font-semibold hover:bg-blue-100 hover:border-blue-300 
+                           transition-all duration-200
+                           flex items-center gap-2"
+              >
+                <Copy size={20} />
+                Copiar Semana Anterior
+              </button>
             </div>
 
             {/* View Toggle */}
@@ -326,6 +544,26 @@ export default function SchedulesPage() {
               >
                 <Camera className="h-4 w-4 mr-2" />
                 {isExporting ? 'Generando...' : 'Exportar Imagen'}
+              </button>
+
+              <button
+                onClick={exportAllWeeksToExcel}
+                className="flex items-center px-4 py-2 bg-green-50 text-green-600 border border-green-200 rounded-lg
+                           font-semibold hover:bg-green-100 hover:border-green-300 
+                           transition-all duration-200 export-hide"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Exportar Todo a Excel
+              </button>
+
+              <button
+                onClick={handleDeleteAllShifts}
+                className="flex items-center px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg
+                           font-semibold hover:bg-red-100 hover:border-red-300 
+                           transition-all duration-200 export-hide"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Borrar Semana
               </button>
             </div>
           </div>

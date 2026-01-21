@@ -77,4 +77,9 @@ export const shiftService = {
     const response = await api.post('/shifts/bulk', { shifts });
     return response.data.data;
   },
+
+  async getAll(): Promise<Shift[]> {
+    const response = await api.get('/shifts');
+    return response.data.data;
+  },
 };
