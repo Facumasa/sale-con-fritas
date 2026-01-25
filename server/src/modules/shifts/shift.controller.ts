@@ -46,7 +46,7 @@ class ShiftController {
    */
   async getWeeklySchedule(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = req.user?.userId;
       if (!userId) {
         res.status(401).json({
           success: false,
@@ -103,7 +103,7 @@ class ShiftController {
    */
   async getByEmployee(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = req.user?.userId;
       if (!userId) {
         res.status(401).json({
           success: false,
@@ -189,7 +189,7 @@ class ShiftController {
    */
   async create(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = req.user?.userId;
       if (!userId) {
         res.status(401).json({
           success: false,
@@ -278,7 +278,7 @@ class ShiftController {
    */
   async bulkCreate(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = req.user?.userId;
       if (!userId) {
         res.status(401).json({
           success: false,
@@ -354,7 +354,7 @@ class ShiftController {
    */
   async update(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = req.user?.userId;
       if (!userId) {
         res.status(401).json({
           success: false,
@@ -442,7 +442,7 @@ class ShiftController {
    */
   async getAll(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = req.user?.userId;
       if (!userId) {
         res.status(401).json({
           success: false,
@@ -497,7 +497,7 @@ class ShiftController {
    */
   async delete(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = req.user?.userId;
       if (!userId) {
         res.status(401).json({
           success: false,

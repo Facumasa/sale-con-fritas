@@ -8,39 +8,31 @@ export interface AuthRequest extends Request {
     role: string;
     restaurantId?: string;
   };
-  userId?: string; // Mantener para compatibilidad hacia atrás
 }
 
 export const authenticateToken = (
   req: AuthRequest,
   res: Response,
   next: NextFunction
-): void => {
+) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
-    res.status(401).json({ error: 'Access token required' });
-    return;
-  }
-
-  const jwtSecret = process.env.JWT_SECRET;
-  if (!jwtSecret) {
-    res.status(500).json({ error: 'JWT secret not configured' });
-    return;
+    return res.status(401).json({ error: 'Access token required' });
   }
 
   try {
-    const decoded = jwt.verify(token, jwtSecret) as { userId: string; email?: string; role?: string };
-    // Establecer tanto user como userId para compatibilidad
-    req.userId = decoded.userId;
+    const secret = process.env.JWT_SECRET || 'fallback-secret';
+    const decoded = jwt.verify(token, secret) as any;
     req.user = {
       userId: decoded.userId,
-      email: decoded.email || '',
-      role: decoded.role || '',
+      email: decoded.email,
+      role: decoded.role,
+      restaurantId: decoded.restaurantId,
     };
     next();
   } catch (error) {
-    res.status(403).json({ error: 'Invalid or expired token' });
+    return res.status(403).json({ error: 'Invalid token' });
   }
 };

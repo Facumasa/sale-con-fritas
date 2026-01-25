@@ -124,7 +124,7 @@ class AuthController {
 
   async me(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = req.user?.userId;
 
       if (!userId) {
         res.status(401).json({

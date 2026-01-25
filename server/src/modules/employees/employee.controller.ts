@@ -30,7 +30,7 @@ class EmployeeController {
    */
   async getAll(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = req.user?.userId;
       if (!userId) {
         res.status(401).json({
           success: false,
@@ -68,7 +68,7 @@ class EmployeeController {
    */
   async getById(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = req.user?.userId;
       if (!userId) {
         res.status(401).json({
           success: false,
@@ -116,7 +116,7 @@ class EmployeeController {
    */
   async create(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = req.user?.userId;
       if (!userId) {
         res.status(401).json({
           success: false,
@@ -196,7 +196,7 @@ class EmployeeController {
    */
   async update(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = req.user?.userId;
       if (!userId) {
         res.status(401).json({
           success: false,
@@ -264,7 +264,7 @@ class EmployeeController {
    */
   async delete(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = req.user?.userId;
       if (!userId) {
         res.status(401).json({
           success: false,
@@ -312,7 +312,7 @@ class EmployeeController {
    */
   async getStats(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = req.user?.userId;
       if (!userId) {
         res.status(401).json({
           success: false,
