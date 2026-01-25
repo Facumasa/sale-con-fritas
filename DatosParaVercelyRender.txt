@@ -1,0 +1,18 @@
+URL from Vercel
+https://sale-con-fritas-j8pjd429b-facundo-masaris-projects.vercel.app
+
+Datos de Render
+Internal Database URL
+postgresql://saleconfritas:lAwbVwtC6AJ52DfNns97LeCkERcy6ZGJ@dpg-d5qtcjv5r7bs738rhqq0-a/saleconfritas
+
+External Database URL
+postgresql://saleconfritas:lAwbVwtC6AJ52DfNns97LeCkERcy6ZGJ@dpg-d5qtcjv5r7bs738rhqq0-a.frankfurt-postgres.render.com/saleconfritas
+
+PSQL Command
+PGPASSWORD=lAwbVwtC6AJ52DfNns97LeCkERcy6ZGJ psql -h dpg-d5qtcjv5r7bs738rhqq0-a.frankfurt-postgres.render.com -U saleconfritas saleconfritas
+
+string random 1
+dbd1a81db67745685e3051e5befe4a24fffe81d551ff4baf535602183e0124cd
+
+string random 2
+3f0fdf7e06f9ecdbb1129e55ff6ea5adcd31845e40c435e00da6472c482db885
