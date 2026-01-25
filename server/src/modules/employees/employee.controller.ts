@@ -86,7 +86,7 @@ class EmployeeController {
         return;
       }
 
-      const { id } = req.params;
+      const id = req.params.id as string;
       if (!id) {
         res.status(400).json({
           success: false,
@@ -214,7 +214,7 @@ class EmployeeController {
         return;
       }
 
-      const { id } = req.params;
+      const id = req.params.id as string;
       if (!id) {
         res.status(400).json({
           success: false,
@@ -282,7 +282,7 @@ class EmployeeController {
         return;
       }
 
-      const { id } = req.params;
+      const id = req.params.id as string;
       if (!id) {
         res.status(400).json({
           success: false,
@@ -330,7 +330,7 @@ class EmployeeController {
         return;
       }
 
-      const { id } = req.params;
+      const id = req.params.id as string;
       if (!id) {
         res.status(400).json({
           success: false,

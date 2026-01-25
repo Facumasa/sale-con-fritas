@@ -121,7 +121,7 @@ class ShiftController {
         return;
       }
 
-      const { employeeId } = req.params;
+      const employeeId = req.params.employeeId as string;
       if (!employeeId) {
         res.status(400).json({
           success: false,
@@ -372,7 +372,7 @@ class ShiftController {
         return;
       }
 
-      const { id } = req.params;
+      const id = req.params.id as string;
       if (!id) {
         res.status(400).json({
           success: false,
@@ -515,7 +515,7 @@ class ShiftController {
         return;
       }
 
-      const { id } = req.params;
+      const id = req.params.id as string;
       if (!id) {
         res.status(400).json({
           success: false,
