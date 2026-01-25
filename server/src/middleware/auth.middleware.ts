@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
+// Extender la interfaz Request de Express
 export interface AuthRequest extends Request {
   user?: {
     userId: string;
@@ -11,28 +12,33 @@ export interface AuthRequest extends Request {
 }
 
 export const authenticateToken = (
-  req: AuthRequest,
+  req: Request,
   res: Response,
   next: NextFunction
-) => {
+): void => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
-    return res.status(401).json({ error: 'Access token required' });
+    res.status(401).json({ error: 'Access token required' });
+    return;
   }
 
   try {
     const secret = process.env.JWT_SECRET || 'fallback-secret';
     const decoded = jwt.verify(token, secret) as any;
-    req.user = {
+    
+    // Cast req a AuthRequest para añadir user
+    (req as AuthRequest).user = {
       userId: decoded.userId,
       email: decoded.email,
       role: decoded.role,
       restaurantId: decoded.restaurantId,
     };
+    
     next();
   } catch (error) {
-    return res.status(403).json({ error: 'Invalid token' });
+    res.status(403).json({ error: 'Invalid token' });
+    return;
   }
 };
