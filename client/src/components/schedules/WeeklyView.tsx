@@ -33,12 +33,6 @@ export default function WeeklyView({ schedule, onDeleteShift, onEditShift, onAdd
     return Math.round(total * 100) / 100;
   };
 
-  const getDayOfWeek = (dateStr: string): number => {
-    const date = new Date(dateStr);
-    const day = date.getDay();
-    return day === 0 ? 6 : day - 1; // Lunes = 0, Domingo = 6
-  };
-
   const getShiftsForDay = (employeeShifts: Shift[], dayIndex: number): Shift[] => {
     // Calcular la fecha del día basada en la semana
     const weekStart = getWeekStartDate(schedule.week, schedule.year);
@@ -131,7 +125,7 @@ export default function WeeklyView({ schedule, onDeleteShift, onEditShift, onAdd
                     </div>
                     <div className="text-xs text-gray-400 mt-0.5">{employee.employeePosition}</div>
                   </td>
-                  {daysOfWeek.map((day, dayIndex) => {
+                  {daysOfWeek.map((_, dayIndex) => {
                     const dayShifts = getShiftsForDay(employee.shifts, dayIndex);
                     const hasShifts = dayShifts.length > 0;
                     return (
@@ -145,7 +139,7 @@ export default function WeeklyView({ schedule, onDeleteShift, onEditShift, onAdd
                       >
                         {hasShifts ? (
                           <div className="space-y-2">
-                            {dayShifts.map((shift, idx) => {
+                            {dayShifts.map((shift) => {
                               // Buscar el empleado correspondiente al turno
                               const shiftEmployee = employees.find((emp) => emp.id === shift.employeeId);
                               return (

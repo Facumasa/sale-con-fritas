@@ -266,28 +266,20 @@ export default function HourlyView({
   // Manejar inicio del drag
   const handleDragStart = (event: DragStartEvent) => {
     const shiftId = event.active.id as string;
-    // Encontrar el turno y la información del empleado
-    let foundShift: Shift | null = null;
-    let foundEmployee: { name: string; color: string } | null = null;
 
-    schedule.employees.forEach((employeeShift) => {
+    for (const employeeShift of schedule.employees) {
       const shift = employeeShift.shifts.find((s) => s.id === shiftId);
-      if (shift) {
-        foundShift = shift;
-        const employee = employees.find((e) => e.id === shift.employeeId);
-        foundEmployee = {
-          name: employeeShift.employeeName,
-          color: employee?.color || '#3b82f6',
-        };
-      }
-    });
+      if (!shift) continue;
 
-    if (foundShift && foundEmployee) {
+      const foundEmployee = employees.find((e) => e.id === shift.employeeId);
+      if (!foundEmployee) continue;
+
       setActiveShift({
-        shift: foundShift,
+        shift,
         employeeName: foundEmployee.name,
         employeeColor: foundEmployee.color,
       });
+      return;
     }
   };
 
@@ -323,14 +315,15 @@ export default function HourlyView({
 
     // Encontrar el turno original
     let originalShift: Shift | null = null;
-    schedule.employees.forEach((employeeShift) => {
+    for (const employeeShift of schedule.employees) {
       const shift = employeeShift.shifts.find((s) => s.id === shiftId);
       if (shift) {
         originalShift = shift;
+        break;
       }
-    });
+    }
 
-    if (!originalShift) return;
+    if (!originalShift || !originalShift.employeeId) return;
 
     // Calcular nueva fecha
     const newDate = calculateDateFromDay(dayIndex);

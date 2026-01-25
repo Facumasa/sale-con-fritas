@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Settings, Camera, Copy, Trash2, Download } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Camera, Copy, Trash2, Download } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { useShiftStore } from '../../store/shiftStore';
 import { useEmployeeStore } from '../../store/employeeStore';
@@ -361,11 +361,10 @@ export default function SchedulesPage() {
 
       // Capturar la imagen
       const canvas = await html2canvas(scheduleContainerRef.current, {
-        scale: 2,
         backgroundColor: '#ffffff',
         logging: false,
         useCORS: true,
-      });
+      } as Record<string, unknown>);
 
       // Crear header con información del restaurante
       const headerCanvas = document.createElement('canvas');
@@ -615,7 +614,7 @@ export default function SchedulesPage() {
       <HourSlotsConfigModal
         isOpen={isSlotsConfigModalOpen}
         onClose={() => setIsSlotsConfigModalOpen(false)}
-        onSlotsChange={(slots: HourlySlot[]) => {
+        onSlotsChange={(_slots: HourlySlot[]) => {
           // Forzar re-render de HourlyView cuando cambian los slots
           if (weeklySchedule) {
             fetchWeekly(currentWeek, currentYear);
