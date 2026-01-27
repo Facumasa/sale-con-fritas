@@ -12,7 +12,7 @@ export interface AuthRequest extends Request {
 }
 
 export const authenticateToken = (
-  req: Request,
+  req: AuthRequest,  // ← CAMBIO AQUÍ
   res: Response,
   next: NextFunction
 ): void => {
@@ -28,8 +28,8 @@ export const authenticateToken = (
     const secret = process.env.JWT_SECRET || 'fallback-secret';
     const decoded = jwt.verify(token, secret) as any;
     
-    // Cast req a AuthRequest para añadir user
-    (req as AuthRequest).user = {
+    // Ahora req ya es AuthRequest, no necesita cast
+    req.user = {
       userId: decoded.userId,
       email: decoded.email,
       role: decoded.role,
