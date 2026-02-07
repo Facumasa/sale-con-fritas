@@ -5,6 +5,7 @@ import { errorHandler } from './middleware/error.middleware';
 import authRoutes from './modules/auth/auth.routes';
 import employeeRoutes from './modules/employees/employee.routes';
 import shiftRoutes from './modules/shifts/shift.routes';
+import attendanceRoutes from './modules/attendance/attendance.routes';
 
 dotenv.config();
 
@@ -53,6 +54,7 @@ app.get('/api/health', (req: Request, res: Response) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/shifts', shiftRoutes);
+app.use('/api/attendance', attendanceRoutes);
 
 // Error handler middleware (must be last)
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {

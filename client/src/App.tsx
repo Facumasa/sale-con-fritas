@@ -7,6 +7,7 @@ import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import SchedulesPage from './pages/schedules/SchedulesPage';
+import { AttendancePage } from './pages/attendance/AttendancePage';
 
 function App() {
   const { token, loadUser } = useAuthStore();
@@ -43,6 +44,7 @@ function App() {
         >
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/horarios" element={<SchedulesPage />} />
+          <Route path="/attendance" element={<AttendancePage />} />
         </Route>
       </Routes>
     </Router>

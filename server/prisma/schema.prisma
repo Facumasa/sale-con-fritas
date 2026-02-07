@@ -35,6 +35,7 @@ model Restaurant {
   subscription   Subscription?
   employees      Employee[]
   shifts         Shift[]
+  attendances    Attendance[]
   toolAccess     ToolAccess[]
   users          User[]        @relation("RestaurantUsers")
   createdAt      DateTime      @default(now())
@@ -57,48 +58,75 @@ model Subscription {
 }
 
 model Employee {
-  id           String     @id @default(cuid())
-  userId       String?    @unique
-  user         User?      @relation(fields: [userId], references: [id])
+  id           String        @id @default(cuid())
+  userId       String?       @unique
+  user         User?         @relation(fields: [userId], references: [id])
   restaurantId String
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurant   Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   name         String
   position     String
   hourlyRate   Float?
   phone        String?
-  color        String     @default("#3b82f6")
-  isActive     Boolean    @default(true)
+  color        String        @default("#3b82f6")
+  pin          String?       @unique
+  qrCode       String?      @unique
+  isActive     Boolean       @default(true)
   shifts       Shift[]
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  attendances  Attendance[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
   @@index([restaurantId])
 }
 
 model Shift {
-  id           String     @id @default(cuid())
+  id           String        @id @default(cuid())
   employeeId   String
-  employee     Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee     Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   restaurantId String
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurant   Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   date         DateTime
   startTime    String
   endTime      String
-  type         String     // MORNING, AFTERNOON, NIGHT, OFF
+  type         String        // MORNING, AFTERNOON, NIGHT, OFF
   notes        String?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  attendances  Attendance[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   @@index([employeeId])
   @@index([restaurantId])
   @@index([date])
 }
 
+model Attendance {
+  id           String     @id @default(cuid())
+  employeeId   String
+  employee     Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  shiftId      String?
+  shift        Shift?      @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  date         DateTime
+  checkIn      DateTime?
+  checkOut     DateTime?
+  workedHours  Float?
+  isLate       Boolean     @default(false)
+  minutesLate  Int?
+  isAbsent     Boolean     @default(false)
+  notes        String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([employeeId, date])
+  @@index([restaurantId, date])
+}
+
 model ToolAccess {
   id           String     @id @default(cuid())
   restaurantId String
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  toolName     String     // HORARIOS, INVENTARIO, RESERVAS, COMANDAS, ANALYTICS
+  toolName     String     // HORARIOS, INVENTARIO, RESERVAS, COMANDAS, ANALYTICS, FICHAJE
   isEnabled    Boolean    @default(false)
   updatedAt    DateTime   @updatedAt
 
