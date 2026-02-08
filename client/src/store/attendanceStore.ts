@@ -18,7 +18,11 @@ interface AttendanceState {
   error: string | null;
   filters: AttendanceFilters;
 
-  checkIn: (employeeId: string, pin: string, notes?: string) => Promise<AttendanceRecord>;
+  checkIn: (
+    employeeId: string,
+    pin: string,
+    options?: { notes?: string; latitude?: number; longitude?: number; deviceId?: string }
+  ) => Promise<AttendanceRecord>;
   checkOut: (attendanceId: string, notes?: string) => Promise<AttendanceRecord>;
   fetchAttendances: () => Promise<void>;
   fetchTodayAttendances: () => Promise<void>;
@@ -46,10 +50,10 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
   error: null,
   filters: {},
 
-  checkIn: async (employeeId, pin, notes) => {
+  checkIn: async (employeeId, pin, options) => {
     set({ error: null });
     try {
-      const record = await attendanceService.checkIn(employeeId, pin, notes);
+      const record = await attendanceService.checkIn(employeeId, pin, options);
       await get().fetchTodayAttendances();
       await get().fetchStats();
       await get().fetchAttendances();

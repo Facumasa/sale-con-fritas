@@ -1,9 +1,43 @@
 import { useState, useEffect } from 'react';
-import { Clock, LogIn, LogOut, Calendar, AlertCircle } from 'lucide-react';
+import { Clock, LogIn, LogOut, Calendar, AlertCircle, MapPin } from 'lucide-react';
 import { useAttendanceStore } from '../../store/attendanceStore';
 import { shiftService } from '../../services/shifts';
 import type { Shift } from '../../services/shifts';
 import type { AttendanceRecord } from '../../services/attendance';
+
+function getDeviceId(): string {
+  let id = localStorage.getItem('deviceId');
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem('deviceId', id);
+  }
+  return id;
+}
+
+function getLocation(): Promise<{ latitude: number; longitude: number }> {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Tu navegador no soporta geolocalización'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+      },
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) {
+          reject(new Error('Necesitas habilitar ubicación'));
+        } else {
+          reject(new Error('No pudimos obtener tu ubicación. Activa el GPS.'));
+        }
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  });
+}
 
 interface CheckInOutProps {
   employeeId: string;
@@ -26,12 +60,26 @@ function formatShiftTime(t: string): string {
   return `${h}:${m}`;
 }
 
+const formatMinutesToHoursAndMinutes = (minutes: number): string => {
+  if (minutes < 60) {
+    return `${minutes} minutos`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  if (mins === 0) {
+    return `${hours} ${hours === 1 ? 'hora' : 'horas'}`;
+  }
+  return `${hours} ${hours === 1 ? 'hora' : 'horas'} y ${mins} minutos`;
+};
+
 export default function CheckInOut({ employeeId, employeeName }: CheckInOutProps) {
   const [time, setTime] = useState(() => formatTime(new Date()));
   const [pin, setPin] = useState('');
   const [notes, setNotes] = useState('');
   const [todayShift, setTodayShift] = useState<Shift | null>(null);
   const [loadingShift, setLoadingShift] = useState(true);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   const {
     todaySummary,
@@ -83,12 +131,31 @@ export default function CheckInOut({ employeeId, employeeName }: CheckInOutProps
   const handleCheckIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pin || pin.length !== 4) return;
+    setLocationError(null);
+    setLocationLoading(true);
     try {
-      await checkIn(employeeId, pin, notes || undefined);
+      const { latitude, longitude } = await getLocation();
+      const deviceId = getDeviceId();
+      await checkIn(employeeId, pin, {
+        notes: notes || undefined,
+        latitude,
+        longitude,
+        deviceId,
+      });
       setPin('');
       setNotes('');
-    } catch {
-      // error already in store
+    } catch (err: any) {
+      const msg = err?.message || err?.response?.data?.error;
+      if (msg?.includes('ubicación') || msg?.includes('GPS') || msg?.includes('habilitar')) {
+        setLocationError('⚠️ No pudimos obtener tu ubicación. Activa el GPS.');
+      } else if (msg?.includes('restaurante para fichar')) {
+        setLocationError('❌ Debes estar en el restaurante para fichar');
+      } else if (msg) {
+        setLocationError(msg);
+      }
+      // error also set in store by checkIn
+    } finally {
+      setLocationLoading(false);
     }
   };
 
@@ -141,7 +208,7 @@ export default function CheckInOut({ employeeId, employeeName }: CheckInOutProps
           <div className="mb-4 flex items-center gap-2 rounded-lg bg-amber-50/80 px-3 py-2">
             <AlertCircle className="h-4 w-4 text-amber-600" />
             <span className="text-sm text-amber-800">
-              Llegaste {todayAttendance.minutesLate} min tarde
+              Llegaste {formatMinutesToHoursAndMinutes(todayAttendance.minutesLate)} tarde
             </span>
           </div>
         )}
@@ -150,10 +217,14 @@ export default function CheckInOut({ employeeId, employeeName }: CheckInOutProps
           <p className="mb-4 text-sm text-slate-600">Fichando como: <strong>{employeeName}</strong></p>
         )}
 
-        {error && (
+        {(error || locationError) && (
           <div className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 flex items-center justify-between">
-            <span>{error}</span>
-            <button type="button" onClick={clearError} className="text-red-500 hover:text-red-700">
+            <span>{locationError || error}</span>
+            <button
+              type="button"
+              onClick={() => { clearError(); setLocationError(null); }}
+              className="text-red-500 hover:text-red-700"
+            >
               ×
             </button>
           </div>
@@ -161,6 +232,12 @@ export default function CheckInOut({ employeeId, employeeName }: CheckInOutProps
 
         {status === 'esperando' && (
           <form onSubmit={handleCheckIn} className="space-y-4">
+            {locationLoading && (
+              <div className="flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-800">
+                <MapPin className="h-4 w-4 animate-pulse" />
+                Obteniendo ubicación...
+              </div>
+            )}
             <div>
               <label htmlFor="pin" className="block text-sm font-medium text-slate-700 mb-1">
                 PIN (4 dígitos)
@@ -175,6 +252,7 @@ export default function CheckInOut({ employeeId, employeeName }: CheckInOutProps
                 className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3 text-center text-lg tracking-[0.5em] focus:border-green-400 focus:ring-2 focus:ring-green-400/20"
                 placeholder="••••"
                 autoComplete="off"
+                disabled={locationLoading}
               />
             </div>
             <div>
@@ -188,15 +266,25 @@ export default function CheckInOut({ employeeId, employeeName }: CheckInOutProps
                 onChange={(e) => setNotes(e.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-2 text-slate-800"
                 placeholder="Ej: Entrada por puerta trasera"
+                disabled={locationLoading}
               />
             </div>
             <button
               type="submit"
-              disabled={loading || pin.length !== 4}
+              disabled={loading || locationLoading || pin.length !== 4}
               className="w-full flex items-center justify-center gap-2 rounded-xl bg-green-500 py-4 text-lg font-semibold text-white shadow-lg transition hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <LogIn className="h-5 w-5" />
-              FICHAR ENTRADA
+              {locationLoading ? (
+                <>
+                  <MapPin className="h-5 w-5 animate-pulse" />
+                  Obteniendo ubicación...
+                </>
+              ) : (
+                <>
+                  <LogIn className="h-5 w-5" />
+                  FICHAR ENTRADA
+                </>
+              )}
             </button>
           </form>
         )}

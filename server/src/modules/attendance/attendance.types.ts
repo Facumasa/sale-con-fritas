@@ -4,6 +4,9 @@ export interface CheckInRequest {
   employeeId: string;
   pin: string;
   notes?: string;
+  latitude?: number;
+  longitude?: number;
+  deviceId?: string;
 }
 
 export interface CheckOutRequest {

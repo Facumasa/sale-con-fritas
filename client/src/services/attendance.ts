@@ -13,6 +13,11 @@ export interface AttendanceRecord {
   minutesLate: number | null;
   isAbsent: boolean;
   notes: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  distanceFromRestaurant?: number | null;
+  deviceId?: string | null;
+  lastFichajeSameDevice?: string | null;
   createdAt: string;
   updatedAt: string;
   employee?: { id: string; name: string; position: string };
@@ -72,8 +77,19 @@ export interface UpdateAttendanceData {
 }
 
 export const attendanceService = {
-  async checkIn(employeeId: string, pin: string, notes?: string): Promise<AttendanceRecord> {
-    const response = await api.post('/attendance/check-in', { employeeId, pin, notes });
+  async checkIn(
+    employeeId: string,
+    pin: string,
+    options?: { notes?: string; latitude?: number; longitude?: number; deviceId?: string }
+  ): Promise<AttendanceRecord> {
+    const response = await api.post('/attendance/check-in', {
+      employeeId,
+      pin,
+      notes: options?.notes,
+      latitude: options?.latitude,
+      longitude: options?.longitude,
+      deviceId: options?.deviceId,
+    });
     return response.data.data;
   },
 

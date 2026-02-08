@@ -4,6 +4,7 @@ import { useAuthStore } from '../../store/authStore';
 import { 
   LayoutDashboard, 
   Calendar, 
+  Clock,
   LogOut, 
   Menu, 
   X,
@@ -24,6 +25,7 @@ export default function Layout() {
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Horarios', href: '/horarios', icon: Calendar },
+    { name: 'Fichaje', href: '/attendance', icon: Clock, description: 'Control de asistencia' },
   ];
 
   const isActive = (path: string) => location.pathname === path;

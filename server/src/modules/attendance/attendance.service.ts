@@ -12,6 +12,27 @@ import {
 } from './attendance.types';
 import { Attendance } from '@prisma/client';
 
+/**
+ * Distancia en metros entre dos puntos (fórmula de Haversine)
+ */
+function calculateDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const R = 6371e3; // radio Tierra en metros
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 class AttendanceService {
   /**
    * Comparar hora (HH:MM) con Date: devuelve minutos de diferencia (positivo = llegó tarde)
@@ -36,6 +57,20 @@ class AttendanceService {
    * Registrar entrada (check-in)
    */
   async checkIn(data: CheckInRequest, restaurantId: string): Promise<Attendance> {
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { id: restaurantId },
+      select: {
+        id: true,
+        latitude: true,
+        longitude: true,
+        fichajeRadiusMeters: true,
+      },
+    });
+
+    if (!restaurant) {
+      throw new Error('Restaurante no encontrado');
+    }
+
     const employee = await prisma.employee.findFirst({
       where: {
         id: data.employeeId,
@@ -55,6 +90,48 @@ class AttendanceService {
     const pinMatch = await bcrypt.compare(data.pin, employee.pin);
     if (!pinMatch) {
       throw new Error('PIN incorrecto');
+    }
+
+    // Geolocalización obligatoria
+    const lat = data.latitude;
+    const lon = data.longitude;
+    const deviceId = data.deviceId ?? null;
+
+    if (lat == null || lon == null) {
+      throw new Error('Ubicación es obligatoria para fichar');
+    }
+
+    if (
+      restaurant.latitude != null &&
+      restaurant.longitude != null &&
+      restaurant.fichajeRadiusMeters != null
+    ) {
+      const distance = calculateDistance(
+        lat,
+        lon,
+        restaurant.latitude,
+        restaurant.longitude
+      );
+      if (distance > restaurant.fichajeRadiusMeters) {
+        throw new Error('Debes estar en el restaurante para fichar');
+      }
+    }
+
+    // Límite: 1 fichaje cada 3 minutos por dispositivo
+    if (deviceId) {
+      const threeMinutesAgo = new Date(Date.now() - 3 * 60 * 1000);
+      const recentSameDevice = await prisma.attendance.findFirst({
+        where: {
+          deviceId,
+          checkIn: { gte: threeMinutesAgo },
+        },
+        orderBy: { checkIn: 'desc' },
+      });
+      if (recentSameDevice) {
+        throw new Error(
+          'Solo se permite 1 fichaje cada 3 minutos por dispositivo'
+        );
+      }
     }
 
     const now = new Date();
@@ -98,6 +175,29 @@ class AttendanceService {
       throw new Error('Ya tienes un fichaje de entrada abierto hoy');
     }
 
+    let distanceFromRestaurant: number | null = null;
+    if (
+      restaurant.latitude != null &&
+      restaurant.longitude != null
+    ) {
+      distanceFromRestaurant = calculateDistance(
+        lat,
+        lon,
+        restaurant.latitude,
+        restaurant.longitude
+      );
+    }
+
+    let lastFichajeSameDevice: Date | null = null;
+    if (deviceId) {
+      const lastSameDevice = await prisma.attendance.findFirst({
+        where: { deviceId },
+        orderBy: { checkIn: 'desc' },
+        select: { checkIn: true },
+      });
+      if (lastSameDevice?.checkIn) lastFichajeSameDevice = lastSameDevice.checkIn;
+    }
+
     return await prisma.attendance.create({
       data: {
         employeeId: data.employeeId,
@@ -111,6 +211,11 @@ class AttendanceService {
         minutesLate,
         isAbsent: false,
         notes: data.notes ?? null,
+        latitude: lat,
+        longitude: lon,
+        distanceFromRestaurant,
+        deviceId,
+        lastFichajeSameDevice,
       },
     });
   }

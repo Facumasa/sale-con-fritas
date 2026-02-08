@@ -8,6 +8,7 @@ import {
   Calendar,
   Filter,
   RefreshCw,
+  MapPin,
 } from 'lucide-react';
 import { useAttendanceStore } from '../../store/attendanceStore';
 import { useEmployeeStore } from '../../store/employeeStore';
@@ -22,11 +23,15 @@ function getStatusBadge(record: AttendanceRecord) {
     return { label: 'Completado', className: 'bg-slate-100 text-slate-700 border-slate-200' };
   if (record.isLate) {
     const min = record.minutesLate ?? 0;
-    const className =
-      min >= 15
-        ? 'bg-orange-100 text-orange-800 border-orange-200'
-        : 'bg-amber-100 text-amber-800 border-amber-200';
-    return { label: min >= 15 ? `Retraso ≥15 min` : `Retraso <15 min`, className };
+    if (min <= 0)
+      return { label: 'A tiempo', className: 'bg-green-100 text-green-700 border-green-200' };
+    if (min <= 15)
+      return { label: 'Retraso <15min', className: 'bg-yellow-100 text-yellow-700 border-yellow-200' };
+    if (min <= 30)
+      return { label: 'Retraso 15-30min', className: 'bg-orange-100 text-orange-700 border-orange-200' };
+    if (min <= 60)
+      return { label: 'Retraso 30-60min', className: 'bg-red-100 text-red-600 border-red-200' };
+    return { label: 'Retraso >1h', className: 'bg-red-200 text-red-800 border-red-300' };
   }
   return { label: 'En turno', className: 'bg-green-100 text-green-800 border-green-200' };
 }
@@ -34,6 +39,18 @@ function getStatusBadge(record: AttendanceRecord) {
 function avatarColor(employeeId: string, employees: { id: string; color: string }[]): string {
   const emp = employees.find((e) => e.id === employeeId);
   return emp?.color || '#94a3b8';
+}
+
+function getDistanceBadge(meters: number | null | undefined) {
+  if (meters == null) return null;
+  const m = Math.round(meters);
+  if (m <= 50) return { label: `${m} m`, className: 'bg-green-100 text-green-700 border-green-200' };
+  if (m <= 100) return { label: `${m} m`, className: 'bg-yellow-100 text-yellow-700 border-yellow-200' };
+  return { label: `${m} m`, className: 'bg-red-100 text-red-600 border-red-200' };
+}
+
+function googleMapsUrl(lat: number, lon: number): string {
+  return `https://www.google.com/maps?q=${lat},${lon}`;
 }
 
 function exportToCSV(rows: AttendanceRecord[], employees: { id: string; name: string }[]) {
@@ -44,6 +61,7 @@ function exportToCSV(rows: AttendanceRecord[], employees: { id: string; name: st
     'Salida',
     'Horas',
     'Estado',
+    'Distancia (m)',
     'Min. retraso',
   ];
   const getStatus = (r: AttendanceRecord) => getStatusBadge(r).label;
@@ -51,6 +69,7 @@ function exportToCSV(rows: AttendanceRecord[], employees: { id: string; name: st
     r.shift ? `${r.shift.startTime}-${r.shift.endTime}` : '—';
   const data = rows.map((r) => {
     const name = r.employee?.name ?? employees.find((e) => e.id === r.employeeId)?.name ?? r.employeeId;
+    const dist = r.distanceFromRestaurant != null ? String(Math.round(r.distanceFromRestaurant)) : '—';
     return [
       name,
       getShift(r),
@@ -58,6 +77,7 @@ function exportToCSV(rows: AttendanceRecord[], employees: { id: string; name: st
       r.checkOut ?? '—',
       r.workedHours != null ? r.workedHours.toFixed(1) : '—',
       getStatus(r),
+      dist,
       r.minutesLate ?? '—',
     ];
   });
@@ -268,18 +288,21 @@ export default function AttendanceTable() {
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
                   Estado
                 </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
+                  Ubicación
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading && rows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                  <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
                     Cargando...
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                  <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
                     No hay registros para esta fecha/filtro.
                   </td>
                 </tr>
@@ -300,6 +323,9 @@ export default function AttendanceTable() {
                   const checkOutStr = toTime(record.checkOut);
                   const hoursStr =
                     record.workedHours != null ? `${record.workedHours.toFixed(1)} h` : '—';
+                  const distanceBadge = getDistanceBadge(record.distanceFromRestaurant);
+                  const hasCoords =
+                    record.latitude != null && record.longitude != null;
 
                   return (
                     <tr key={record.id} className="hover:bg-slate-50/50">
@@ -329,6 +355,31 @@ export default function AttendanceTable() {
                         >
                           {badge.label}
                         </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {distanceBadge ? (
+                          hasCoords ? (
+                            <a
+                              href={googleMapsUrl(record.latitude!, record.longitude!)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium hover:opacity-90 ${distanceBadge.className}`}
+                              title="Ver en Google Maps"
+                            >
+                              <MapPin className="h-3 w-3" />
+                              {distanceBadge.label}
+                            </a>
+                          ) : (
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${distanceBadge.className}`}
+                            >
+                              <MapPin className="h-3 w-3" />
+                              {distanceBadge.label}
+                            </span>
+                          )
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
                       </td>
                     </tr>
                   );
