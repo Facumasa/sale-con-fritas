@@ -7,7 +7,7 @@ async function main() {
   try {
     console.log('🌱 Iniciando seed de la base de datos...');
 
-    // 1. Crear usuario owner primero (necesario para crear el restaurante)
+    // 1. Usuario OWNER
     console.log('👤 Creando usuario owner...');
     const hashedPassword = await bcrypt.hash('demo123', 10);
     const owner = await prisma.user.create({
@@ -20,143 +20,131 @@ async function main() {
     });
     console.log('✅ Usuario owner creado:', owner.email);
 
-    // 2. Crear restaurante con el ownerId
+    // 2. Restaurante
     console.log('📦 Creando restaurante...');
     const restaurant = await prisma.restaurant.create({
       data: {
         name: 'Restaurante Demo',
-        address: 'Calle Demo 123',
-        phone: '+34 123 456 789',
-        email: 'info@restaurantedemo.com',
+        address: 'Calle Gran Vía 123, Madrid',
         ownerId: owner.id,
       },
     });
     console.log('✅ Restaurante creado:', restaurant.name);
 
-    // Vincular el usuario al restaurante (relación RestaurantUsers)
     await prisma.user.update({
       where: { id: owner.id },
       data: { restaurantId: restaurant.id },
     });
 
-    // 3. Crear empleados
-    console.log('👥 Creando empleados...');
-    const employees = await Promise.all([
-      prisma.employee.create({
-        data: {
-          restaurantId: restaurant.id,
-          name: 'María García',
-          position: 'Camarera',
-          color: '#3b82f6',
-          isActive: true,
-        },
-      }),
-      prisma.employee.create({
-        data: {
-          restaurantId: restaurant.id,
-          name: 'Juan López',
-          position: 'Cocinero',
-          color: '#10b981',
-          isActive: true,
-        },
-      }),
-      prisma.employee.create({
-        data: {
-          restaurantId: restaurant.id,
-          name: 'Ana Martínez',
-          position: 'Ayudante',
-          color: '#f59e0b',
-          isActive: true,
-        },
-      }),
-    ]);
-    console.log('✅ Empleados creados:', employees.length);
-
-    // 4. Crear suscripción
-    console.log('💳 Creando suscripción...');
+    // 3. Suscripción (necesaria para la app)
     const today = new Date();
-    const trialEndDate = new Date();
-    trialEndDate.setDate(today.getDate() + 14);
-
-    const subscription = await prisma.subscription.create({
+    const trialEnd = new Date(today);
+    trialEnd.setDate(today.getDate() + 14);
+    await prisma.subscription.create({
       data: {
         restaurantId: restaurant.id,
         plan: 'BASICO',
         status: 'TRIALING',
         currentPeriodStart: today,
-        currentPeriodEnd: trialEndDate,
-        trialEndsAt: trialEndDate,
+        currentPeriodEnd: trialEnd,
+        trialEndsAt: trialEnd,
       },
     });
-    console.log('✅ Suscripción creada:', subscription.plan);
 
-    // 5. Crear ToolAccess
-    console.log('🛠️ Creando accesos a herramientas...');
+    // 4. Empleados
+    console.log('👥 Creando empleados...');
+    const maria = await prisma.employee.create({
+      data: {
+        restaurantId: restaurant.id,
+        name: 'María García',
+        position: 'Camarera',
+        hourlyRate: 12.5,
+        color: '#ef4444',
+        isActive: true,
+      },
+    });
+    const juan = await prisma.employee.create({
+      data: {
+        restaurantId: restaurant.id,
+        name: 'Juan Martínez',
+        position: 'Cocinero',
+        hourlyRate: 15,
+        color: '#3b82f6',
+        isActive: true,
+      },
+    });
+    const ana = await prisma.employee.create({
+      data: {
+        restaurantId: restaurant.id,
+        name: 'Ana López',
+        position: 'Ayudante',
+        hourlyRate: 11,
+        color: '#10b981',
+        isActive: true,
+      },
+    });
+    const employees = [maria, juan, ana];
+    console.log('✅ Empleados creados:', employees.length);
+
+    // 5. Turnos: hoy + próximos 3 días. María 09-17, Juan 10-18, Ana 15-22
+    console.log('📅 Creando turnos (hoy + 3 días)...');
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const shiftConfig = [
+      { employee: maria, startTime: '09:00', endTime: '17:00', type: 'MORNING' },
+      { employee: juan, startTime: '10:00', endTime: '18:00', type: 'MORNING' },
+      { employee: ana, startTime: '15:00', endTime: '22:00', type: 'AFTERNOON' },
+    ];
+
+    for (let day = 0; day < 4; day++) {
+      const date = new Date(startOfToday);
+      date.setDate(startOfToday.getDate() + day);
+
+      for (const { employee, startTime, endTime, type } of shiftConfig) {
+        await prisma.shift.create({
+          data: {
+            employeeId: employee.id,
+            restaurantId: restaurant.id,
+            date,
+            startTime,
+            endTime,
+            type,
+          },
+        });
+      }
+    }
+    console.log('✅ Turnos creados: 4 días × 3 empleados = 12');
+
+    // 6. ToolAccess: habilitar FICHAJE
+    console.log('🛠️ Configurando accesos a herramientas...');
     const tools = [
       { toolName: 'HORARIOS', isEnabled: true },
       { toolName: 'INVENTARIO', isEnabled: false },
       { toolName: 'RESERVAS', isEnabled: false },
       { toolName: 'COMANDAS', isEnabled: false },
       { toolName: 'ANALYTICS', isEnabled: false },
+      { toolName: 'FICHAJE', isEnabled: true },
     ];
 
-    const toolAccesses = await Promise.all(
-      tools.map((tool) =>
-        prisma.toolAccess.create({
-          data: {
-            restaurantId: restaurant.id,
-            toolName: tool.toolName,
-            isEnabled: tool.isEnabled,
-          },
-        })
-      )
-    );
-    console.log('✅ Accesos a herramientas creados:', toolAccesses.length);
-
-    // 6. Crear turnos de ejemplo para la semana actual
-    console.log('📅 Creando turnos de ejemplo...');
-    const shifts = [];
-    const todayDate = new Date();
-    todayDate.setHours(0, 0, 0, 0); // Inicio del día
-
-    // Crear 6 turnos distribuidos en la semana actual
-    const shiftTypes = ['MORNING', 'AFTERNOON', 'NIGHT'];
-    const shiftTimes = {
-      MORNING: { start: '09:00', end: '15:00' },
-      AFTERNOON: { start: '15:00', end: '22:00' },
-      NIGHT: { start: '20:00', end: '02:00' },
-    };
-
-    for (let i = 0; i < 6; i++) {
-      const shiftDate = new Date(todayDate);
-      shiftDate.setDate(todayDate.getDate() + i); // Días de la semana actual
-
-      const employeeIndex = i % employees.length;
-      const shiftType = shiftTypes[i % shiftTypes.length];
-      const times = shiftTimes[shiftType as keyof typeof shiftTimes];
-
-      const shift = await prisma.shift.create({
+    for (const tool of tools) {
+      await prisma.toolAccess.create({
         data: {
-          employeeId: employees[employeeIndex].id,
           restaurantId: restaurant.id,
-          date: shiftDate,
-          startTime: times.start,
-          endTime: times.end,
-          type: shiftType,
+          toolName: tool.toolName,
+          isEnabled: tool.isEnabled,
         },
       });
-      shifts.push(shift);
     }
-    console.log('✅ Turnos creados:', shifts.length);
+    console.log('✅ FICHAJE y demás herramientas configuradas');
 
     console.log('\n✨ Seed completado exitosamente!');
     console.log('\n📊 Resumen:');
+    console.log(`   - Usuario: ${owner.email} / demo123`);
     console.log(`   - Restaurante: ${restaurant.name}`);
-    console.log(`   - Usuario owner: ${owner.email}`);
-    console.log(`   - Empleados: ${employees.length}`);
-    console.log(`   - Suscripción: ${subscription.plan} (${subscription.status})`);
-    console.log(`   - Accesos a herramientas: ${toolAccesses.length}`);
-    console.log(`   - Turnos: ${shifts.length}`);
+    console.log(`   - Empleados: María García, Juan Martínez, Ana López`);
+    console.log(`   - Turnos: hoy + 3 días (09-17, 10-18, 15-22)`);
+    console.log(`   - FICHAJE: habilitado`);
   } catch (error) {
     console.error('❌ Error durante el seed:', error);
     throw error;
