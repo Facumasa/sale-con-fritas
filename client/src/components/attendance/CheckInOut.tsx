@@ -42,6 +42,8 @@ function getLocation(): Promise<{ latitude: number; longitude: number }> {
 interface CheckInOutProps {
   employeeId: string;
   employeeName?: string;
+  /** Si es true, se pide ubicación antes de fichar. Si es false, el fichaje es sin geolocalización. */
+  requireGeolocation?: boolean;
 }
 
 type Status = 'esperando' | 'en_turno' | 'completado';
@@ -72,7 +74,7 @@ const formatMinutesToHoursAndMinutes = (minutes: number): string => {
   return `${hours} ${hours === 1 ? 'hora' : 'horas'} y ${mins} minutos`;
 };
 
-export default function CheckInOut({ employeeId, employeeName }: CheckInOutProps) {
+export default function CheckInOut({ employeeId, employeeName, requireGeolocation = false }: CheckInOutProps) {
   const [time, setTime] = useState(() => formatTime(new Date()));
   const [pin, setPin] = useState('');
   const [notes, setNotes] = useState('');
@@ -134,7 +136,13 @@ export default function CheckInOut({ employeeId, employeeName }: CheckInOutProps
     setLocationError(null);
     setLocationLoading(true);
     try {
-      const { latitude, longitude } = await getLocation();
+      let latitude: number | undefined;
+      let longitude: number | undefined;
+      if (requireGeolocation) {
+        const coords = await getLocation();
+        latitude = coords.latitude;
+        longitude = coords.longitude;
+      }
       const deviceId = getDeviceId();
       await checkIn(employeeId, pin, {
         notes: notes || undefined,
@@ -232,7 +240,7 @@ export default function CheckInOut({ employeeId, employeeName }: CheckInOutProps
 
         {status === 'esperando' && (
           <form onSubmit={handleCheckIn} className="space-y-4">
-            {locationLoading && (
+            {requireGeolocation && locationLoading && (
               <div className="flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-800">
                 <MapPin className="h-4 w-4 animate-pulse" />
                 Obteniendo ubicación...
@@ -252,7 +260,7 @@ export default function CheckInOut({ employeeId, employeeName }: CheckInOutProps
                 className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3 text-center text-lg tracking-[0.5em] focus:border-green-400 focus:ring-2 focus:ring-green-400/20"
                 placeholder="••••"
                 autoComplete="off"
-                disabled={locationLoading}
+                disabled={requireGeolocation ? locationLoading : false}
               />
             </div>
             <div>
@@ -266,7 +274,7 @@ export default function CheckInOut({ employeeId, employeeName }: CheckInOutProps
                 onChange={(e) => setNotes(e.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-2 text-slate-800"
                 placeholder="Ej: Entrada por puerta trasera"
-                disabled={locationLoading}
+                disabled={requireGeolocation ? locationLoading : false}
               />
             </div>
             <button

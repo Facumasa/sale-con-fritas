@@ -4,6 +4,13 @@ import { authenticateToken } from '../../middleware/auth.middleware';
 
 const router = Router();
 
+// Rutas públicas (SIN auth) - ANTES de router.use(authenticateToken)
+router.post('/public/check-in', (req, res) => attendanceController.checkInPublic(req, res));
+router.post('/public/check-out', (req, res) => attendanceController.checkOutPublic(req, res));
+router.get('/public/:publicToken/info', (req, res) => attendanceController.getPublicFichajeInfo(req, res));
+router.get('/public/:publicToken/employees', (req, res) => attendanceController.getPublicFichajeEmployees(req, res));
+router.get('/public/:publicToken/employee/:employeeId/status', (req, res) => attendanceController.getPublicEmployeeStatus(req, res));
+
 router.use(authenticateToken);
 
 // POST /attendance/check-in

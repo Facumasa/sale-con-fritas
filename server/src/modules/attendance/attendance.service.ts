@@ -64,6 +64,7 @@ class AttendanceService {
         latitude: true,
         longitude: true,
         fichajeRadiusMeters: true,
+        requireGeolocation: true,
       },
     });
 
@@ -92,32 +93,33 @@ class AttendanceService {
       throw new Error('PIN incorrecto');
     }
 
-    // Geolocalización obligatoria
     const lat = data.latitude;
     const lon = data.longitude;
     const deviceId = data.deviceId ?? null;
 
-    if (lat == null || lon == null) {
-      throw new Error('Ubicación es obligatoria para fichar');
-    }
-
-    if (
-      restaurant.latitude != null &&
-      restaurant.longitude != null &&
-      restaurant.fichajeRadiusMeters != null
-    ) {
-      const distance = calculateDistance(
-        lat,
-        lon,
-        restaurant.latitude,
-        restaurant.longitude
-      );
-      if (distance > restaurant.fichajeRadiusMeters) {
-        throw new Error('Debes estar en el restaurante para fichar');
+    if (restaurant.requireGeolocation) {
+      if (lat == null || lon == null) {
+        throw new Error('Este restaurante requiere geolocalización');
+      }
+      if (
+        restaurant.latitude != null &&
+        restaurant.longitude != null &&
+        restaurant.fichajeRadiusMeters != null
+      ) {
+        const distance = calculateDistance(
+          lat,
+          lon,
+          restaurant.latitude,
+          restaurant.longitude
+        );
+        if (distance > restaurant.fichajeRadiusMeters) {
+          throw new Error(
+            `Debes estar dentro de ${restaurant.fichajeRadiusMeters}m del restaurante para fichar`
+          );
+        }
       }
     }
 
-    // Límite: 1 fichaje cada 3 minutos por dispositivo
     if (deviceId) {
       const threeMinutesAgo = new Date(Date.now() - 3 * 60 * 1000);
       const recentSameDevice = await prisma.attendance.findFirst({
@@ -140,7 +142,6 @@ class AttendanceService {
     const todayEnd = new Date(now);
     todayEnd.setHours(23, 59, 59, 999);
 
-    // Buscar turno del día para este empleado (opcional)
     const shift = await prisma.shift.findFirst({
       where: {
         employeeId: data.employeeId,
@@ -160,7 +161,6 @@ class AttendanceService {
       }
     }
 
-    // Evitar doble check-in el mismo día
     const existing = await prisma.attendance.findFirst({
       where: {
         employeeId: data.employeeId,
@@ -177,6 +177,8 @@ class AttendanceService {
 
     let distanceFromRestaurant: number | null = null;
     if (
+      lat != null &&
+      lon != null &&
       restaurant.latitude != null &&
       restaurant.longitude != null
     ) {
@@ -211,13 +213,131 @@ class AttendanceService {
         minutesLate,
         isAbsent: false,
         notes: data.notes ?? null,
-        latitude: lat,
-        longitude: lon,
+        latitude: lat ?? null,
+        longitude: lon ?? null,
         distanceFromRestaurant,
         deviceId,
         lastFichajeSameDevice,
       },
     });
+  }
+
+  /**
+   * Check-in público por token (página QR, sin auth)
+   */
+  async checkInPublic(data: {
+    publicToken: string;
+    employeeId: string;
+    pin: string;
+    latitude?: number;
+    longitude?: number;
+    deviceId?: string;
+    notes?: string;
+  }): Promise<Attendance> {
+    const restaurant = await prisma.restaurant.findFirst({
+      where: { publicFichajeToken: data.publicToken },
+    });
+    if (!restaurant) {
+      throw new Error('Enlace de fichaje no válido');
+    }
+    const employee = await prisma.employee.findFirst({
+      where: {
+        id: data.employeeId,
+        restaurantId: restaurant.id,
+        isActive: true,
+      },
+    });
+    if (!employee) {
+      throw new Error('Empleado no encontrado o inactivo');
+    }
+    return this.checkIn(
+      {
+        employeeId: data.employeeId,
+        pin: data.pin,
+        notes: data.notes,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        deviceId: data.deviceId,
+      },
+      restaurant.id
+    );
+  }
+
+  /**
+   * Info pública del restaurante por token (para página de fichaje QR)
+   */
+  async getPublicFichajeInfo(publicToken: string): Promise<{ name: string; requireGeolocation: boolean }> {
+    const restaurant = await prisma.restaurant.findFirst({
+      where: { publicFichajeToken: publicToken },
+      select: { name: true, requireGeolocation: true },
+    });
+    if (!restaurant) throw new Error('Enlace de fichaje no válido');
+    return { name: restaurant.name, requireGeolocation: restaurant.requireGeolocation ?? false };
+  }
+
+  /**
+   * Empleados activos para fichaje público (solo id, name, position, color)
+   */
+  async getPublicFichajeEmployees(publicToken: string): Promise<{ id: string; name: string; position: string; color: string }[]> {
+    const restaurant = await prisma.restaurant.findFirst({
+      where: { publicFichajeToken: publicToken },
+      select: { id: true },
+    });
+    if (!restaurant) throw new Error('Enlace de fichaje no válido');
+    const employees = await prisma.employee.findMany({
+      where: { restaurantId: restaurant.id, isActive: true },
+      select: { id: true, name: true, position: true, color: true },
+      orderBy: { name: 'asc' },
+    });
+    return employees;
+  }
+
+  /**
+   * Estado de fichaje de un empleado hoy (para mostrar Entrada vs Salida en página pública)
+   */
+  async getPublicEmployeeStatus(
+    publicToken: string,
+    employeeId: string
+  ): Promise<{ hasOpenAttendance: boolean; attendanceId?: string }> {
+    const restaurant = await prisma.restaurant.findFirst({
+      where: { publicFichajeToken: publicToken },
+      select: { id: true },
+    });
+    if (!restaurant) throw new Error('Enlace de fichaje no válido');
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+    const open = await prisma.attendance.findFirst({
+      where: {
+        restaurantId: restaurant.id,
+        employeeId,
+        date: { gte: todayStart, lte: todayEnd },
+        checkIn: { not: null },
+        checkOut: null,
+      },
+      select: { id: true },
+    });
+    if (open) return { hasOpenAttendance: true, attendanceId: open.id };
+    return { hasOpenAttendance: false };
+  }
+
+  /**
+   * Check-out público por token
+   */
+  async checkOutPublic(data: {
+    publicToken: string;
+    attendanceId: string;
+    notes?: string;
+  }): Promise<Attendance> {
+    const restaurant = await prisma.restaurant.findFirst({
+      where: { publicFichajeToken: data.publicToken },
+    });
+    if (!restaurant) throw new Error('Enlace de fichaje no válido');
+    return this.checkOut(
+      { attendanceId: data.attendanceId, notes: data.notes },
+      restaurant.id
+    );
   }
 
   /**

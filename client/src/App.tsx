@@ -8,6 +8,7 @@ import RegisterPage from './pages/auth/RegisterPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import SchedulesPage from './pages/schedules/SchedulesPage';
 import AttendancePage from './pages/attendance/AttendancePage';
+import PublicFichajePage from './pages/PublicFichajePage';
 
 function App() {
   const { token, loadUser } = useAuthStore();
@@ -33,6 +34,9 @@ function App() {
         {/* Auth routes */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+
+        {/* Ruta pública de fichaje (sin login) */}
+        <Route path="/fichaje/:publicToken" element={<PublicFichajePage />} />
 
         {/* Protected routes with layout */}
         <Route

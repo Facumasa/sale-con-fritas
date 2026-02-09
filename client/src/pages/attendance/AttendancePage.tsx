@@ -2,16 +2,20 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { useEmployeeStore } from '../../store/employeeStore';
 import { CheckInOut, AttendanceTable, MonthlyReport } from '../../components/attendance';
+import FichajeSettings from '../../components/settings/FichajeSettings';
+import { restaurantService } from '../../services/restaurants';
 import type { Employee } from '../../services/employees';
 
-type TabId = 'hoy' | 'reporte' | 'fichar';
+type TabId = 'hoy' | 'reporte' | 'fichar' | 'config';
 
 function FicharTab({
   employees,
   currentEmployee,
+  requireGeolocation,
 }: {
   employees: Employee[];
   currentEmployee: Employee | undefined;
+  requireGeolocation: boolean;
 }) {
   const [selectedId, setSelectedId] = useState<string>(currentEmployee?.id ?? '');
   const effectiveEmployee = selectedId
@@ -53,6 +57,7 @@ function FicharTab({
         <CheckInOut
           employeeId={effectiveEmployee.id}
           employeeName={effectiveEmployee.name}
+          requireGeolocation={requireGeolocation}
         />
       ) : (
         <div className="rounded-xl bg-slate-100 px-4 py-6 text-center text-slate-600">
@@ -67,12 +72,14 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'hoy', label: 'Asistencia Hoy' },
   { id: 'reporte', label: 'Reporte Mensual' },
   { id: 'fichar', label: 'Fichar' },
+  { id: 'config', label: 'Configuración' },
 ];
 
 export default function AttendancePage() {
   const { user } = useAuthStore();
   const { employees, fetchEmployees } = useEmployeeStore();
   const [activeTab, setActiveTab] = useState<TabId>('hoy');
+  const [requireGeolocation, setRequireGeolocation] = useState(false);
 
   const role = user?.role ?? '';
   const isEmployee = role === 'EMPLOYEE';
@@ -85,6 +92,12 @@ export default function AttendancePage() {
       fetchEmployees();
     }
   }, [isEmployee, isOwnerOrAdmin, fetchEmployees]);
+
+  useEffect(() => {
+    if (isEmployee || isOwnerOrAdmin) {
+      restaurantService.getMy().then((r) => setRequireGeolocation(r.requireGeolocation ?? false)).catch(() => {});
+    }
+  }, [isEmployee, isOwnerOrAdmin]);
 
   if (isEmployee) {
     if (!currentEmployee) {
@@ -108,7 +121,11 @@ export default function AttendancePage() {
           <header className="sticky top-0 z-10 mb-6 rounded-xl bg-white/80 py-4 shadow-sm backdrop-blur-sm">
             <h1 className="text-2xl font-bold text-gray-900">Control de Asistencia</h1>
           </header>
-          <CheckInOut employeeId={currentEmployee.id} employeeName={currentEmployee.name} />
+          <CheckInOut
+            employeeId={currentEmployee.id}
+            employeeName={currentEmployee.name}
+            requireGeolocation={requireGeolocation}
+          />
         </div>
       </div>
     );
@@ -155,10 +172,12 @@ export default function AttendancePage() {
 
         {activeTab === 'hoy' && <AttendanceTable />}
         {activeTab === 'reporte' && <MonthlyReport />}
+        {activeTab === 'config' && <FichajeSettings />}
         {activeTab === 'fichar' && (
           <FicharTab
             employees={employees}
             currentEmployee={currentEmployee}
+            requireGeolocation={requireGeolocation}
           />
         )}
       </div>

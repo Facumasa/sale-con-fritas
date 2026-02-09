@@ -25,24 +25,26 @@ model User {
 }
 
 model Restaurant {
-  id                  String        @id @default(cuid())
-  name                String
-  address             String?
-  phone               String?
-  email               String?
-  latitude            Float?
-  longitude           Float?
-  fichajeRadiusMeters Int           @default(200)
-  ownerId             String        @unique
-  owner               User          @relation("RestaurantOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  subscription        Subscription?
-  employees           Employee[]
-  shifts              Shift[]
-  attendances         Attendance[]
-  toolAccess          ToolAccess[]
-  users               User[]        @relation("RestaurantUsers")
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
+  id                    String        @id @default(cuid())
+  name                  String
+  address               String?
+  phone                 String?
+  email                 String?
+  latitude              Float?
+  longitude             Float?
+  fichajeRadiusMeters   Int           @default(200)
+  requireGeolocation    Boolean       @default(false)
+  publicFichajeToken    String?       @unique
+  ownerId               String        @unique
+  owner                 User          @relation("RestaurantOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  subscription          Subscription?
+  employees             Employee[]
+  shifts                Shift[]
+  attendances           Attendance[]
+  toolAccess            ToolAccess[]
+  users                 User[]        @relation("RestaurantUsers")
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 }
 
 model Subscription {

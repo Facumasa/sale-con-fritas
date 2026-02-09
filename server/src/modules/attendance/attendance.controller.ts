@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import attendanceService from './attendance.service';
 import { CheckInRequest, CheckOutRequest, UpdateAttendanceRequest } from './attendance.types';
 import { AuthRequest } from '../../middleware/auth.middleware';
@@ -15,6 +15,105 @@ class AttendanceController {
     });
     if (!user) return null;
     return user.ownedRestaurant?.id ?? user.restaurantId ?? null;
+  }
+
+  /**
+   * POST /attendance/public/check-in (sin auth)
+   */
+  async checkInPublic(req: Request, res: Response): Promise<void> {
+    try {
+      const body = req.body as {
+        publicToken: string;
+        employeeId: string;
+        pin: string;
+        latitude?: number;
+        longitude?: number;
+        deviceId?: string;
+        notes?: string;
+      };
+      if (!body.publicToken || !body.employeeId || !body.pin) {
+        res.status(400).json({ success: false, error: 'publicToken, employeeId y pin son requeridos' });
+        return;
+      }
+      const attendance = await attendanceService.checkInPublic(body);
+      res.status(201).json({ success: true, data: attendance });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message || 'Error al registrar entrada',
+      });
+    }
+  }
+
+  /**
+   * GET /attendance/public/:publicToken/info (sin auth)
+   */
+  async getPublicFichajeInfo(req: Request, res: Response): Promise<void> {
+    try {
+      const { publicToken } = req.params;
+      if (!publicToken) {
+        res.status(400).json({ success: false, error: 'Token requerido' });
+        return;
+      }
+      const info = await attendanceService.getPublicFichajeInfo(publicToken);
+      res.json({ success: true, data: info });
+    } catch (error: any) {
+      res.status(404).json({ success: false, error: error.message || 'Enlace no válido' });
+    }
+  }
+
+  /**
+   * GET /attendance/public/:publicToken/employees (sin auth)
+   */
+  async getPublicFichajeEmployees(req: Request, res: Response): Promise<void> {
+    try {
+      const { publicToken } = req.params;
+      if (!publicToken) {
+        res.status(400).json({ success: false, error: 'Token requerido' });
+        return;
+      }
+      const employees = await attendanceService.getPublicFichajeEmployees(publicToken);
+      res.json({ success: true, data: employees });
+    } catch (error: any) {
+      res.status(404).json({ success: false, error: error.message || 'Enlace no válido' });
+    }
+  }
+
+  /**
+   * GET /attendance/public/:publicToken/employee/:employeeId/status (sin auth)
+   */
+  async getPublicEmployeeStatus(req: Request, res: Response): Promise<void> {
+    try {
+      const { publicToken, employeeId } = req.params;
+      if (!publicToken || !employeeId) {
+        res.status(400).json({ success: false, error: 'Token y employeeId requeridos' });
+        return;
+      }
+      const status = await attendanceService.getPublicEmployeeStatus(publicToken, employeeId);
+      res.json({ success: true, data: status });
+    } catch (error: any) {
+      res.status(404).json({ success: false, error: error.message || 'Enlace no válido' });
+    }
+  }
+
+  /**
+   * POST /attendance/public/check-out (sin auth)
+   */
+  async checkOutPublic(req: Request, res: Response): Promise<void> {
+    try {
+      const body = req.body as { publicToken: string; attendanceId: string; notes?: string };
+      if (!body.publicToken || !body.attendanceId) {
+        res.status(400).json({ success: false, error: 'publicToken y attendanceId son requeridos' });
+        return;
+      }
+      const attendance = await attendanceService.checkOutPublic(body);
+      res.json({ success: true, data: attendance });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message || 'Error al registrar salida',
+      });
+    }
   }
 
   /**
