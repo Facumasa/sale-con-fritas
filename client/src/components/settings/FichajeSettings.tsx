@@ -97,7 +97,7 @@ export default function FichajeSettings() {
   const handleDownloadQR = async () => {
     if (!qrRef.current) return;
     try {
-      const canvas = await html2canvas(qrRef.current, { scale: 2, backgroundColor: '#ffffff' });
+      const canvas = await html2canvas(qrRef.current, { backgroundColor: '#ffffff' });
       const a = document.createElement('a');
       a.href = canvas.toDataURL('image/png');
       a.download = 'qr-fichaje.png';
