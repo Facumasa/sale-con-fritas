@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useEmployeeStore } from '../../store/employeeStore';
 import { useShiftStore } from '../../store/shiftStore';
 import { Calendar, Users, Clock, ArrowRight } from 'lucide-react';
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const { employees, fetchEmployees } = useEmployeeStore();
   const { weeklySchedule, currentWeek, currentYear, fetchWeekly } = useShiftStore();
@@ -79,19 +80,28 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-gray-900">Panel de Control</h1>
+
       {/* Welcome Card */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h1 className="text-2xl font-bold text-gray-900">
-          Bienvenido, {user?.name}
-        </h1>
+        <h2 className="text-xl font-bold text-gray-900">
+          Bienvenido de nuevo, {user?.name}
+        </h2>
         <p className="text-gray-600 mt-1">
           Aquí tienes un resumen de tu restaurante
         </p>
       </div>
 
-      {/* Stats */}
+      {/* Resumen */}
+      <h2 className="text-lg font-semibold text-gray-900">Resumen</h2>
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-        <div className="bg-white rounded-lg shadow p-6">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => navigate('/horarios')}
+          onKeyDown={(e) => e.key === 'Enter' && navigate('/horarios')}
+          className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
+        >
           <div className="flex items-center">
             <div className="flex-shrink-0 bg-blue-100 rounded-lg p-3">
               <Users className="h-6 w-6 text-blue-600" />
@@ -103,7 +113,13 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => navigate('/horarios')}
+          onKeyDown={(e) => e.key === 'Enter' && navigate('/horarios')}
+          className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
+        >
           <div className="flex items-center">
             <div className="flex-shrink-0 bg-orange-100 rounded-lg p-3">
               <Calendar className="h-6 w-6 text-orange-600" />
@@ -120,7 +136,13 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => navigate('/horarios')}
+          onKeyDown={(e) => e.key === 'Enter' && navigate('/horarios')}
+          className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
+        >
           <div className="flex items-center">
             <div className="flex-shrink-0 bg-purple-100 rounded-lg p-3">
               <Clock className="h-6 w-6 text-purple-600" />
@@ -133,9 +155,9 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Tools */}
+      {/* Acciones Rápidas */}
       <div>
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Herramientas</h2>
+        <h2 className="text-xl font-bold text-gray-900 mb-4">Acciones Rápidas</h2>
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {tools.map((tool) => (
             <div

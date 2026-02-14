@@ -69,7 +69,7 @@ function FicharTab({
 }
 
 const TABS: { id: TabId; label: string }[] = [
-  { id: 'hoy', label: 'Asistencia Hoy' },
+  { id: 'hoy', label: 'Asistencia de Hoy' },
   { id: 'reporte', label: 'Reporte Mensual' },
   { id: 'fichar', label: 'Fichar' },
   { id: 'config', label: 'Configuración' },

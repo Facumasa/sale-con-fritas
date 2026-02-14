@@ -23,7 +23,7 @@ export default function Layout() {
   };
 
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Panel', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Horarios', href: '/horarios', icon: Calendar },
     { name: 'Fichaje', href: '/attendance', icon: Clock, description: 'Control de asistencia' },
   ];
