@@ -94,17 +94,16 @@ export default function FichajeSettings() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleDownloadQR = async () => {
+  const handleDownloadQR = () => {
     if (!qrRef.current) return;
-    try {
-      const canvas = await html2canvas(qrRef.current, { backgroundColor: '#ffffff' });
+    html2canvas(qrRef.current).then((canvas) => {
       const a = document.createElement('a');
       a.href = canvas.toDataURL('image/png');
       a.download = 'qr-fichaje.png';
       a.click();
-    } catch {
+    }).catch(() => {
       setError('Error al descargar QR');
-    }
+    });
   };
 
   const handlePrint = () => {
