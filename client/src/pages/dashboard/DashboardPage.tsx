@@ -36,12 +36,19 @@ export default function DashboardPage() {
     return hours + minutes / 60;
   };
 
-  const tools = [
+  const allTools = [
     {
       name: 'Horarios',
       description: 'Gestiona los horarios de tus empleados',
       icon: Calendar,
       href: '/horarios',
+      available: true,
+    },
+    {
+      name: 'Fichaje',
+      description: 'Control de asistencia',
+      icon: Clock,
+      href: '/attendance',
       available: true,
     },
     {
@@ -66,6 +73,9 @@ export default function DashboardPage() {
       available: false,
     },
   ];
+
+  const activeToolNames = ['Horarios', 'Fichaje'];
+  const tools = allTools.filter((t) => activeToolNames.includes(t.name));
 
   return (
     <div className="space-y-6">
