@@ -205,7 +205,7 @@ export default function HourSlotsConfigModal({
                   </button>
                   <button
                     onClick={handleSave}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+                    className="px-4 py-2 text-sm font-medium text-white bg-brand-500 rounded-lg hover:bg-brand-600 shadow-sm transition-all duration-200"
                   >
                     Guardar
                   </button>

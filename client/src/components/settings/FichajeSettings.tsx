@@ -148,7 +148,7 @@ export default function FichajeSettings() {
             aria-checked={requireGeolocation}
             onClick={() => setRequireGeolocation(!requireGeolocation)}
             className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border transition-colors ${
-              requireGeolocation ? 'bg-blue-600 border-blue-600' : 'bg-slate-200 border-slate-200'
+              requireGeolocation ? 'bg-brand-500 border-brand-500' : 'bg-slate-200 border-slate-200'
             }`}
           >
             <span
@@ -215,7 +215,7 @@ export default function FichajeSettings() {
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="rounded-xl bg-blue-600 px-6 py-2.5 text-white font-medium hover:bg-blue-700 disabled:opacity-50"
+          className="rounded-xl bg-brand-500 px-6 py-2.5 text-white font-medium hover:bg-brand-600 disabled:opacity-50 shadow-sm transition-all duration-200"
         >
           {saving ? 'Guardando...' : 'Guardar configuración'}
         </button>
@@ -231,7 +231,7 @@ export default function FichajeSettings() {
             type="button"
             onClick={handleGenerateToken}
             disabled={generating}
-            className="flex items-center gap-2 rounded-xl bg-green-600 px-5 py-2.5 text-white font-medium hover:bg-green-700 disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-2.5 text-white font-medium hover:bg-brand-600 disabled:opacity-50 shadow-sm transition-all duration-200"
           >
             <RefreshCw className={`h-4 w-4 ${generating ? 'animate-spin' : ''}`} />
             {generating ? 'Generando...' : 'Generar QR de fichaje'}

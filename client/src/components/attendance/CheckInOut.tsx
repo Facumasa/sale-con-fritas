@@ -201,9 +201,9 @@ export default function CheckInOut({ employeeId, employeeName, requireGeolocatio
         {loadingShift ? (
           <p className="mb-4 text-sm text-slate-500">Cargando turno...</p>
         ) : todayShift ? (
-          <div className="mb-4 flex items-center gap-2 rounded-lg bg-blue-50/80 px-3 py-2">
-            <Calendar className="h-4 w-4 text-blue-600" />
-            <span className="text-sm text-blue-800">
+          <div className="mb-4 flex items-center gap-2 rounded-lg bg-brand-50/80 px-3 py-2">
+            <Calendar className="h-4 w-4 text-brand-500" />
+            <span className="text-sm text-brand-700">
               Turno hoy: {formatShiftTime(todayShift.startTime)} – {formatShiftTime(todayShift.endTime)}
             </span>
           </div>
@@ -241,7 +241,7 @@ export default function CheckInOut({ employeeId, employeeName, requireGeolocatio
         {status === 'esperando' && (
           <form onSubmit={handleCheckIn} className="space-y-4">
             {requireGeolocation && locationLoading && (
-              <div className="flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-800">
+              <div className="flex items-center gap-2 rounded-lg bg-brand-50 px-3 py-2 text-sm text-brand-700">
                 <MapPin className="h-4 w-4 animate-pulse" />
                 Obteniendo ubicación...
               </div>
@@ -280,7 +280,7 @@ export default function CheckInOut({ employeeId, employeeName, requireGeolocatio
             <button
               type="submit"
               disabled={loading || locationLoading || pin.length !== 4}
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-green-500 py-4 text-lg font-semibold text-white shadow-lg transition hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-brand-500 py-4 text-lg font-semibold text-white shadow-lg transition hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {locationLoading ? (
                 <>

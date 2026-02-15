@@ -28,10 +28,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 px-4">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-brand-500 rounded-full mb-4">
             <LogIn className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900">Iniciar Sesión</h1>
@@ -54,7 +54,7 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent"
               placeholder="tu@email.com"
               required
             />
@@ -69,7 +69,7 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent"
               placeholder="••••••••"
               required
             />
@@ -78,7 +78,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full bg-brand-500 text-white py-2 px-4 rounded-lg hover:bg-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all duration-200"
           >
             {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
           </button>
@@ -87,7 +87,7 @@ export default function LoginPage() {
         <div className="mt-6 text-center">
           <p className="text-gray-600">
             ¿No tienes una cuenta?{' '}
-            <Link to="/register" className="text-blue-600 hover:text-blue-700 font-medium">
+            <Link to="/register" className="text-brand-500 hover:text-brand-700 font-medium transition-colors duration-200">
               Regístrate
             </Link>
           </p>

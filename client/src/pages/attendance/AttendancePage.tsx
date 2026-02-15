@@ -160,7 +160,7 @@ export default function AttendancePage() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
                   activeTab === tab.id
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-brand-500 text-white'
                     : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                 }`}
               >

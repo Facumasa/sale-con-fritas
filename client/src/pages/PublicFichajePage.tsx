@@ -195,7 +195,7 @@ export default function PublicFichajePage() {
               <button
                 type="button"
                 onClick={acceptRgpd}
-                className="w-full rounded-xl bg-blue-600 py-3 text-white font-semibold hover:bg-blue-700"
+                className="w-full rounded-xl bg-brand-500 py-3 text-white font-semibold hover:bg-brand-600 shadow-sm transition-all duration-200"
               >
                 Acepto y continúo
               </button>
@@ -290,7 +290,7 @@ export default function PublicFichajePage() {
               <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
             )}
             {success && (
-              <div className="rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800 font-medium">
+              <div className="rounded-xl bg-brand-50 px-4 py-3 text-sm text-brand-700 font-medium">
                 {success}
               </div>
             )}

@@ -99,7 +99,7 @@ export default function EmployeesTab({ hideHeading = false }: EmployeesTabProps)
         )}
         <button
           onClick={() => handleOpenModal()}
-          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="flex items-center px-4 py-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600 shadow-sm transition-all duration-200"
         >
           <Plus className="h-4 w-4 mr-2" />
           Añadir Empleado
@@ -122,7 +122,7 @@ export default function EmployeesTab({ hideHeading = false }: EmployeesTabProps)
               <div className="flex space-x-2">
                 <button
                   onClick={() => handleOpenModal(employee)}
-                  className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                  className="p-2 text-gray-600 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors duration-200"
                 >
                   <Pencil className="h-4 w-4" />
                 </button>
@@ -237,7 +237,7 @@ export default function EmployeesTab({ hideHeading = false }: EmployeesTabProps)
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+                      className="px-4 py-2 text-sm font-medium text-white bg-brand-500 rounded-lg hover:bg-brand-600 shadow-sm transition-all duration-200"
                     >
                       {editingEmployee ? 'Actualizar' : 'Guardar'}
                     </button>

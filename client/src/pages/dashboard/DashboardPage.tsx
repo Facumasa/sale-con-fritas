@@ -103,8 +103,8 @@ export default function DashboardPage() {
           className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
         >
           <div className="flex items-center">
-            <div className="flex-shrink-0 bg-blue-100 rounded-lg p-3">
-              <Users className="h-6 w-6 text-blue-600" />
+            <div className="flex-shrink-0 bg-brand-50 rounded-lg p-3">
+              <Users className="h-6 w-6 text-brand-500" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Empleados</p>
@@ -121,8 +121,8 @@ export default function DashboardPage() {
           className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
         >
           <div className="flex items-center">
-            <div className="flex-shrink-0 bg-orange-100 rounded-lg p-3">
-              <Calendar className="h-6 w-6 text-orange-600" />
+            <div className="flex-shrink-0 bg-brand-50 rounded-lg p-3">
+              <Calendar className="h-6 w-6 text-brand-500" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Turnos esta Semana</p>
@@ -144,8 +144,8 @@ export default function DashboardPage() {
           className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
         >
           <div className="flex items-center">
-            <div className="flex-shrink-0 bg-purple-100 rounded-lg p-3">
-              <Clock className="h-6 w-6 text-purple-600" />
+            <div className="flex-shrink-0 bg-brand-50 rounded-lg p-3">
+              <Clock className="h-6 w-6 text-brand-500" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Horas Programadas</p>
@@ -162,11 +162,11 @@ export default function DashboardPage() {
           {tools.map((tool) => (
             <div
               key={tool.name}
-              className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
+              className={`bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow ${tool.available ? 'border-l-4 border-brand-500' : ''}`}
             >
               <div className="flex items-center justify-between mb-4">
-                <div className="bg-blue-100 rounded-lg p-3">
-                  <tool.icon className="h-6 w-6 text-blue-600" />
+                <div className="bg-brand-50 rounded-lg p-3">
+                  <tool.icon className="h-6 w-6 text-brand-500" />
                 </div>
                 {!tool.available && (
                   <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded">
@@ -181,7 +181,7 @@ export default function DashboardPage() {
               {tool.available ? (
                 <Link
                   to={tool.href}
-                  className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-700"
+                  className="inline-flex items-center text-sm font-medium text-brand-500 hover:text-brand-700 transition-colors duration-200"
                 >
                   Ir a {tool.name}
                   <ArrowRight className="ml-1 h-4 w-4" />

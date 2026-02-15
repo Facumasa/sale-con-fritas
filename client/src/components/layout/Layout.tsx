@@ -68,7 +68,7 @@ export default function Layout() {
                 onClick={() => setSidebarOpen(false)}
                 className={`flex items-center px-4 py-2 text-sm font-medium rounded-lg ${
                   isActive(item.href)
-                    ? 'bg-blue-50 text-blue-700'
+                    ? 'bg-brand-50 text-brand-700 border-l-4 border-brand-500'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >
@@ -94,7 +94,7 @@ export default function Layout() {
                 to={item.href}
                 className={`flex items-center px-4 py-2 text-sm font-medium rounded-lg ${
                   isActive(item.href)
-                    ? 'bg-blue-50 text-blue-700'
+                    ? 'bg-brand-50 text-brand-700 border-l-4 border-brand-500'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >
@@ -109,7 +109,7 @@ export default function Layout() {
       {/* Main content */}
       <div className="lg:pl-64">
         {/* Header */}
-        <div className="sticky top-0 z-10 flex h-16 bg-white border-b border-gray-200">
+        <div className="sticky top-0 z-10 flex h-16 bg-white border-b border-gray-200 border-t-2 border-t-brand-500">
           <button
             type="button"
             className="px-4 text-gray-500 lg:hidden"

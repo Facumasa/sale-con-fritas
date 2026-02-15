@@ -24,7 +24,7 @@ function getStatusBadge(record: AttendanceRecord) {
   if (record.isLate) {
     const min = record.minutesLate ?? 0;
     if (min <= 0)
-      return { label: 'A tiempo', className: 'bg-green-100 text-green-700 border-green-200' };
+      return { label: 'A tiempo', className: 'bg-brand-50 text-brand-700 border-brand-500' };
     if (min <= 15)
       return { label: 'Retraso <15min', className: 'bg-yellow-100 text-yellow-700 border-yellow-200' };
     if (min <= 30)
@@ -33,7 +33,7 @@ function getStatusBadge(record: AttendanceRecord) {
       return { label: 'Retraso 30-60min', className: 'bg-red-100 text-red-600 border-red-200' };
     return { label: 'Retraso >1h', className: 'bg-red-200 text-red-800 border-red-300' };
   }
-  return { label: 'En turno', className: 'bg-green-100 text-green-800 border-green-200' };
+  return { label: 'En turno', className: 'bg-brand-50 text-brand-700 border-brand-500' };
 }
 
 function avatarColor(employeeId: string, employees: { id: string; color: string }[]): string {
@@ -44,7 +44,7 @@ function avatarColor(employeeId: string, employees: { id: string; color: string 
 function getDistanceBadge(meters: number | null | undefined) {
   if (meters == null) return null;
   const m = Math.round(meters);
-  if (m <= 50) return { label: `${m} m`, className: 'bg-green-100 text-green-700 border-green-200' };
+  if (m <= 50) return { label: `${m} m`, className: 'bg-brand-50 text-brand-700 border-brand-500' };
   if (m <= 100) return { label: `${m} m`, className: 'bg-yellow-100 text-yellow-700 border-yellow-200' };
   return { label: `${m} m`, className: 'bg-red-100 text-red-600 border-red-200' };
 }
