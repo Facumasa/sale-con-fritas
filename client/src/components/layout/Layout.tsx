@@ -68,7 +68,7 @@ export default function Layout() {
                 onClick={() => setSidebarOpen(false)}
                 className={`flex items-center px-4 py-2 text-sm font-medium rounded-lg ${
                   isActive(item.href)
-                    ? 'bg-brand-50 text-brand-700 border-l-4 border-brand-500'
+                    ? 'bg-brand-50 text-brand-700 border-l-4 border-brand-600'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >
@@ -94,7 +94,7 @@ export default function Layout() {
                 to={item.href}
                 className={`flex items-center px-4 py-2 text-sm font-medium rounded-lg ${
                   isActive(item.href)
-                    ? 'bg-brand-50 text-brand-700 border-l-4 border-brand-500'
+                    ? 'bg-brand-50 text-brand-700 border-l-4 border-brand-600'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >

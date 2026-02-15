@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useEmployeeStore } from '../../store/employeeStore';
 import { useShiftStore } from '../../store/shiftStore';
@@ -37,46 +37,8 @@ export default function DashboardPage() {
     return hours + minutes / 60;
   };
 
-  const allTools = [
-    {
-      name: 'Horarios',
-      description: 'Gestiona los horarios de tus empleados',
-      icon: Calendar,
-      href: '/horarios',
-      available: true,
-    },
-    {
-      name: 'Fichaje',
-      description: 'Control de asistencia',
-      icon: Clock,
-      href: '/attendance',
-      available: true,
-    },
-    {
-      name: 'Inventario',
-      description: 'Control de inventario y productos',
-      icon: Calendar,
-      href: '#',
-      available: false,
-    },
-    {
-      name: 'Reservas',
-      description: 'Sistema de reservas de mesas',
-      icon: Calendar,
-      href: '#',
-      available: false,
-    },
-    {
-      name: 'Comandas',
-      description: 'Gestión de pedidos y comandas',
-      icon: Calendar,
-      href: '#',
-      available: false,
-    },
-  ];
-
-  const activeToolNames = ['Horarios', 'Fichaje'];
-  const tools = allTools.filter((t) => activeToolNames.includes(t.name));
+  const weekShiftsCount =
+    weeklySchedule?.employees.reduce((acc, emp) => acc + emp.shifts.length, 0) || 0;
 
   return (
     <div className="space-y-6">
@@ -93,63 +55,63 @@ export default function DashboardPage() {
       </div>
 
       {/* Resumen */}
-      <h2 className="text-lg font-semibold text-gray-900">Resumen</h2>
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => navigate('/employees')}
-          onKeyDown={(e) => e.key === 'Enter' && navigate('/employees')}
-          className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
-        >
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-brand-50 rounded-lg p-3">
-              <Users className="h-6 w-6 text-brand-500" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Empleados</p>
-              <p className="text-2xl font-bold text-gray-900">{employees.length}</p>
-            </div>
-          </div>
-        </div>
-
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => navigate('/horarios')}
-          onKeyDown={(e) => e.key === 'Enter' && navigate('/horarios')}
-          className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
-        >
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-brand-50 rounded-lg p-3">
-              <Calendar className="h-6 w-6 text-brand-500" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Turnos esta Semana</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {weeklySchedule?.employees.reduce(
-                  (acc, emp) => acc + emp.shifts.length,
-                  0
-                ) || 0}
-              </p>
+      <div className="mb-8">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Resumen</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Card 1: Total Empleados - VERDE */}
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate('/employees')}
+            onKeyDown={(e) => e.key === 'Enter' && navigate('/employees')}
+            className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200/50 p-6 hover:shadow-md transition-all duration-200 cursor-pointer"
+          >
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-brand-50 rounded-lg">
+                <Users className="w-6 h-6 text-brand-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Total Empleados</p>
+                <p className="text-3xl font-bold text-gray-900">{employees.length}</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => navigate('/horarios')}
-          onKeyDown={(e) => e.key === 'Enter' && navigate('/horarios')}
-          className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
-        >
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-brand-50 rounded-lg p-3">
-              <Clock className="h-6 w-6 text-brand-500" />
+          {/* Card 2: Turnos esta Semana - NARANJA */}
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate('/horarios')}
+            onKeyDown={(e) => e.key === 'Enter' && navigate('/horarios')}
+            className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200/50 p-6 hover:shadow-md transition-all duration-200 cursor-pointer"
+          >
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-orange-50 rounded-lg">
+                <Calendar className="w-6 h-6 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Turnos esta Semana</p>
+                <p className="text-3xl font-bold text-gray-900">{weekShiftsCount}</p>
+              </div>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Horas Programadas</p>
-              <p className="text-2xl font-bold text-gray-900">{totalHours}</p>
+          </div>
+
+          {/* Card 3: Horas Programadas - MORADO */}
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate('/horarios')}
+            onKeyDown={(e) => e.key === 'Enter' && navigate('/horarios')}
+            className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200/50 p-6 hover:shadow-md transition-all duration-200 cursor-pointer"
+          >
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-purple-50 rounded-lg">
+                <Clock className="w-6 h-6 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Horas Programadas</p>
+                <p className="text-3xl font-bold text-gray-900">{totalHours}</p>
+              </div>
             </div>
           </div>
         </div>
@@ -157,43 +119,55 @@ export default function DashboardPage() {
 
       {/* Acciones Rápidas */}
       <div>
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Acciones Rápidas</h2>
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {tools.map((tool) => (
-            <div
-              key={tool.name}
-              className={`bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow ${tool.available ? 'border-l-4 border-brand-500' : ''}`}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="bg-brand-50 rounded-lg p-3">
-                  <tool.icon className="h-6 w-6 text-brand-500" />
-                </div>
-                {!tool.available && (
-                  <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded">
-                    Próximamente
-                  </span>
-                )}
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Acciones Rápidas</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Card Horarios - VERDE */}
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate('/horarios')}
+            onKeyDown={(e) => e.key === 'Enter' && navigate('/horarios')}
+            className="bg-white/80 backdrop-blur-sm rounded-xl border-2 border-brand-500/20 p-6 hover:border-brand-500 hover:shadow-md transition-all duration-200 group cursor-pointer"
+          >
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-brand-50 rounded-lg group-hover:bg-brand-100 transition-colors">
+                <Calendar className="w-6 h-6 text-brand-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                {tool.name}
-              </h3>
-              <p className="text-sm text-gray-600 mb-4">{tool.description}</p>
-              {tool.available ? (
-                <Link
-                  to={tool.href}
-                  className="inline-flex items-center text-sm font-medium text-brand-500 hover:text-brand-700 transition-colors duration-200"
-                >
-                  Ir a {tool.name}
-                  <ArrowRight className="ml-1 h-4 w-4" />
-                </Link>
-              ) : (
-                <span className="inline-flex items-center text-sm font-medium text-gray-400 cursor-not-allowed">
-                  No disponible
-                  <ArrowRight className="ml-1 h-4 w-4" />
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">Horarios</h3>
+                <p className="text-sm text-gray-600 mb-3">
+                  Gestiona los horarios de tus empleados
+                </p>
+                <span className="text-brand-600 hover:text-brand-700 font-medium text-sm flex items-center gap-1 group-hover:gap-2 transition-all">
+                  Ir a Horarios
+                  <ArrowRight className="w-4 h-4" />
                 </span>
-              )}
+              </div>
             </div>
-          ))}
+          </div>
+
+          {/* Card Fichaje - AZUL */}
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate('/attendance')}
+            onKeyDown={(e) => e.key === 'Enter' && navigate('/attendance')}
+            className="bg-white/80 backdrop-blur-sm rounded-xl border-2 border-blue-500/20 p-6 hover:border-blue-500 hover:shadow-md transition-all duration-200 group cursor-pointer"
+          >
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-blue-50 rounded-lg group-hover:bg-blue-100 transition-colors">
+                <Clock className="w-6 h-6 text-blue-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">Fichaje</h3>
+                <p className="text-sm text-gray-600 mb-3">Control de asistencia</p>
+                <span className="text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center gap-1 group-hover:gap-2 transition-all">
+                  Ir a Fichaje
+                  <ArrowRight className="w-4 h-4" />
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
