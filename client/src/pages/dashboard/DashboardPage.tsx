@@ -98,8 +98,8 @@ export default function DashboardPage() {
         <div
           role="button"
           tabIndex={0}
-          onClick={() => navigate('/horarios')}
-          onKeyDown={(e) => e.key === 'Enter' && navigate('/horarios')}
+          onClick={() => navigate('/employees')}
+          onKeyDown={(e) => e.key === 'Enter' && navigate('/employees')}
           className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
         >
           <div className="flex items-center">

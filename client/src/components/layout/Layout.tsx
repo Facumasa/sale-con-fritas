@@ -8,7 +8,8 @@ import {
   LogOut, 
   Menu, 
   X,
-  Building2
+  Building2,
+  Users
 } from 'lucide-react';
 
 export default function Layout() {
@@ -24,6 +25,7 @@ export default function Layout() {
 
   const navigation = [
     { name: 'Panel', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Empleados', href: '/employees', icon: Users, description: 'Gestión del equipo' },
     { name: 'Horarios', href: '/horarios', icon: Calendar },
     { name: 'Fichaje', href: '/attendance', icon: Clock, description: 'Control de asistencia' },
   ];

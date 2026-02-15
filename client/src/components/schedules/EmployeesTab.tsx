@@ -7,7 +7,12 @@ interface EmployeeFormData extends CreateEmployeeRequest {
   id?: string;
 }
 
-export default function EmployeesTab() {
+interface EmployeesTabProps {
+  /** Oculta el título "Empleados" cuando se usa como página independiente */
+  hideHeading?: boolean;
+}
+
+export default function EmployeesTab({ hideHeading = false }: EmployeesTabProps) {
   const { employees, fetchEmployees, addEmployee, updateEmployee, deleteEmployee } =
     useEmployeeStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -88,8 +93,10 @@ export default function EmployeesTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold text-gray-900">Empleados</h2>
+      <div className={`flex ${hideHeading ? 'justify-end' : 'justify-between'} items-center`}>
+        {!hideHeading && (
+          <h2 className="text-xl font-bold text-gray-900">Empleados</h2>
+        )}
         <button
           onClick={() => handleOpenModal()}
           className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"

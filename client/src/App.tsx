@@ -8,6 +8,7 @@ import RegisterPage from './pages/auth/RegisterPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import SchedulesPage from './pages/schedules/SchedulesPage';
 import AttendancePage from './pages/attendance/AttendancePage';
+import EmployeesPage from './pages/employees/EmployeesPage';
 import PublicFichajePage from './pages/PublicFichajePage';
 
 function App() {
@@ -47,6 +48,7 @@ function App() {
           }
         >
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/employees" element={<EmployeesPage />} />
           <Route path="/horarios" element={<SchedulesPage />} />
           <Route path="/attendance" element={<AttendancePage />} />
         </Route>
