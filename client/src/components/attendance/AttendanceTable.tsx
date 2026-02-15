@@ -9,6 +9,7 @@ import {
   Filter,
   RefreshCw,
   MapPin,
+  ChevronDown,
 } from 'lucide-react';
 import { useAttendanceStore } from '../../store/attendanceStore';
 import { useEmployeeStore } from '../../store/employeeStore';
@@ -16,10 +17,12 @@ import type { AttendanceRecord } from '../../services/attendance';
 
 type StatusFilter = 'todos' | 'presente' | 'ausente' | 'retraso' | 'completado';
 
-function getStatusBadge(record: AttendanceRecord) {
+function getStatusBadge(record: AttendanceRecord, opts?: { fichajesCount?: number }) {
   if (record.isAbsent)
     return { label: 'Ausente', className: 'bg-red-100 text-red-800 border-red-200' };
-  if (record.checkOut)
+  const count = opts?.fichajesCount ?? 1;
+  const isInside = count % 2 === 1;
+  if (!isInside)
     return { label: 'Completado', className: 'bg-slate-100 text-slate-700 border-slate-200' };
   if (record.isLate) {
     const min = record.minutesLate ?? 0;
@@ -34,6 +37,33 @@ function getStatusBadge(record: AttendanceRecord) {
     return { label: 'Retraso >1h', className: 'bg-red-200 text-red-800 border-red-300' };
   }
   return { label: 'En turno', className: 'bg-brand-50 text-brand-700 border-brand-500' };
+}
+
+function fichajeLabel(index: number, total: number): string {
+  const isOdd = index % 2 === 0;
+  if (isOdd) return index === 0 ? 'Entrada' : 'Regreso';
+  if (index === 1 && total > 2) return 'Salida (almuerzo)';
+  if (index === total - 1) return 'Salida final';
+  return 'Salida';
+}
+
+function toTimeStr(v: string | null | undefined): string {
+  if (v == null) return '—';
+  const s = String(v);
+  return s.length >= 16 ? s.slice(11, 16) : s.slice(0, 5);
+}
+
+function workedHoursFromFichajes(records: AttendanceRecord[]): number | null {
+  const sorted = [...records].sort(
+    (a, b) => new Date(a.checkIn ?? 0).getTime() - new Date(b.checkIn ?? 0).getTime()
+  );
+  let total = 0;
+  for (let i = 0; i + 1 < sorted.length; i += 2) {
+    const t1 = new Date(sorted[i].checkIn ?? 0).getTime();
+    const t2 = new Date(sorted[i + 1].checkIn ?? 0).getTime();
+    if (!isNaN(t1) && !isNaN(t2)) total += (t2 - t1) / (1000 * 60 * 60);
+  }
+  return total > 0 ? total : null;
 }
 
 function avatarColor(employeeId: string, employees: { id: string; color: string }[]): string {
@@ -167,13 +197,36 @@ export default function AttendanceTable() {
 
   const rows = useMemo(() => {
     let list = attendances;
-    if (statusFilter === 'presente')
-      list = list.filter((a) => !a.isAbsent && a.checkIn && !a.checkOut);
-    else if (statusFilter === 'ausente') list = list.filter((a) => a.isAbsent);
+    const byEmp = new Map<string, AttendanceRecord[]>();
+    list.forEach((a) => {
+      if (!byEmp.has(a.employeeId)) byEmp.set(a.employeeId, []);
+      byEmp.get(a.employeeId)!.push(a);
+    });
+    if (statusFilter === 'presente') {
+      list = list.filter(
+        (a) => !a.isAbsent && a.checkIn && ((byEmp.get(a.employeeId)?.length ?? 0) % 2 === 1)
+      );
+    } else if (statusFilter === 'ausente') list = list.filter((a) => a.isAbsent);
     else if (statusFilter === 'retraso') list = list.filter((a) => a.isLate);
-    else if (statusFilter === 'completado') list = list.filter((a) => a.checkOut);
+    else if (statusFilter === 'completado') {
+      list = list.filter((a) => (byEmp.get(a.employeeId)?.length ?? 0) % 2 === 0);
+    }
     return list;
   }, [attendances, statusFilter]);
+
+  const groupedRows = useMemo(() => {
+    const byEmployee = new Map<string, AttendanceRecord[]>();
+    rows.forEach((r) => {
+      if (!byEmployee.has(r.employeeId)) byEmployee.set(r.employeeId, []);
+      byEmployee.get(r.employeeId)!.push(r);
+    });
+    return Array.from(byEmployee.entries()).map(([employeeId, recs]) => {
+      const sorted = [...recs].sort(
+        (a, b) => new Date(a.checkIn ?? 0).getTime() - new Date(b.checkIn ?? 0).getTime()
+      );
+      return { employeeId, records: sorted };
+    });
+  }, [rows]);
 
   const handleExportCSV = () => {
     exportToCSV(rows, employees);
@@ -280,7 +333,7 @@ export default function AttendanceTable() {
                   Entrada
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
-                  Salida
+                  Fichajes
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
                   Horas
@@ -294,41 +347,43 @@ export default function AttendanceTable() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {loading && rows.length === 0 ? (
+              {loading && groupedRows.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
                     Cargando...
                   </td>
                 </tr>
-              ) : rows.length === 0 ? (
+              ) : groupedRows.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
                     No hay registros para esta fecha/filtro.
                   </td>
                 </tr>
               ) : (
-                rows.map((record) => {
-                  const badge = getStatusBadge(record);
-                  const color = avatarColor(record.employeeId, employees);
+                groupedRows.map(({ employeeId, records }) => {
+                  const first = records[0];
+                  const badge = getStatusBadge(first, { fichajesCount: records.length });
+                  const color = avatarColor(employeeId, employees);
                   const name =
-                    record.employee?.name ??
-                    employees.find((e) => e.id === record.employeeId)?.name ??
+                    first.employee?.name ??
+                    employees.find((e) => e.id === employeeId)?.name ??
                     '—';
-                  const shiftStr = record.shift
-                    ? `${record.shift.startTime} - ${record.shift.endTime}`
+                  const shiftStr = first.shift
+                    ? `${first.shift.startTime} - ${first.shift.endTime}`
                     : '—';
-                  const toTime = (v: string | null | undefined) =>
-                    v == null ? '—' : String(v).length >= 16 ? String(v).slice(11, 16) : String(v).slice(0, 5);
-                  const checkInStr = toTime(record.checkIn);
-                  const checkOutStr = toTime(record.checkOut);
+                  const checkInStr = toTimeStr(first.checkIn);
+                  const hoursComputed = workedHoursFromFichajes(records);
                   const hoursStr =
-                    record.workedHours != null ? `${record.workedHours.toFixed(1)} h` : '—';
-                  const distanceBadge = getDistanceBadge(record.distanceFromRestaurant);
+                    hoursComputed != null ? `${hoursComputed.toFixed(1)} h` : '—';
+                  const distanceBadge = getDistanceBadge(first.distanceFromRestaurant);
                   const hasCoords =
-                    record.latitude != null && record.longitude != null;
+                    first.latitude != null && first.longitude != null;
+                  const fichajesTooltipText = records
+                    .map((r, i) => `${toTimeStr(r.checkIn)} - ${fichajeLabel(i, records.length)}`)
+                    .join('\n');
 
                   return (
-                    <tr key={record.id} className="hover:bg-slate-50/50">
+                    <tr key={employeeId} className="hover:bg-slate-50/50">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <div
@@ -339,15 +394,23 @@ export default function AttendanceTable() {
                           </div>
                           <div>
                             <p className="font-medium text-slate-800">{name}</p>
-                            {record.employee?.position && (
-                              <p className="text-xs text-slate-500">{record.employee.position}</p>
+                            {first.employee?.position && (
+                              <p className="text-xs text-slate-500">{first.employee.position}</p>
                             )}
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-slate-700">{shiftStr}</td>
                       <td className="px-4 py-3 text-sm text-slate-700">{checkInStr}</td>
-                      <td className="px-4 py-3 text-sm text-slate-700">{checkOutStr}</td>
+                      <td className="px-4 py-3 text-sm text-slate-700">
+                        <span
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700"
+                          title={fichajesTooltipText}
+                        >
+                          {records.length} fichaje{records.length !== 1 ? 's' : ''}
+                          <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-sm text-slate-700">{hoursStr}</td>
                       <td className="px-4 py-3">
                         <span
@@ -360,7 +423,7 @@ export default function AttendanceTable() {
                         {distanceBadge ? (
                           hasCoords ? (
                             <a
-                              href={googleMapsUrl(record.latitude!, record.longitude!)}
+                              href={googleMapsUrl(first.latitude!, first.longitude!)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium hover:opacity-90 ${distanceBadge.className}`}

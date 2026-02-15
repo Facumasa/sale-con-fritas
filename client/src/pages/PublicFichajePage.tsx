@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { Clock, LogIn, LogOut, MapPin, UtensilsCrossed } from 'lucide-react';
+import { Clock, MapPin, UtensilsCrossed } from 'lucide-react';
 import { publicFichajeService } from '../services/publicFichaje';
+import type { TodayFichajesResponse } from '../services/publicFichaje';
+import FichajesDelDia from '../components/attendance/FichajesDelDia';
 
 const RGPD_STORAGE_KEY = 'fichaje_rgpd_accepted';
 const getDeviceId = (): string => {
@@ -46,7 +48,9 @@ export default function PublicFichajePage() {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
   const [pin, setPin] = useState('');
   const [notes, setNotes] = useState('');
-  const [status, setStatus] = useState<{ hasOpenAttendance: boolean; attendanceId?: string } | null>(null);
+  const [status, setStatus] = useState<{ hasOpenAttendance: boolean; attendanceId?: string; lastCheckIn?: string; isInside: boolean } | null>(null);
+  const [todayFichajes, setTodayFichajes] = useState<TodayFichajesResponse | null>(null);
+  const [todayFichajesLoading, setTodayFichajesLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +58,16 @@ export default function PublicFichajePage() {
   const [showRgpd, setShowRgpd] = useState(false);
   const [loadingPage, setLoadingPage] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
+  const [showPinChangeModal, setShowPinChangeModal] = useState(false);
+  const [pinChangeEmployeeId, setPinChangeEmployeeId] = useState<string | null>(null);
+  const [pinChangeEmail, setPinChangeEmail] = useState('');
+  const [pinChangeSending, setPinChangeSending] = useState(false);
+  const [pinChangeError, setPinChangeError] = useState<string | null>(null);
+  const [pinChangeSuccess, setPinChangeSuccess] = useState(false);
+  const [showForgotPinModal, setShowForgotPinModal] = useState(false);
+  const [forgotPinEmployeeId, setForgotPinEmployeeId] = useState('');
+  const [forgotPinSending, setForgotPinSending] = useState(false);
+  const [forgotPinMessage, setForgotPinMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const t = setInterval(() => setTime(formatTime(new Date())), 1000);
@@ -83,16 +97,31 @@ export default function PublicFichajePage() {
       .finally(() => setLoadingPage(false));
   }, [publicToken]);
 
-  useEffect(() => {
+  const fetchTodayAndStatus = useCallback(() => {
     if (!publicToken || !selectedEmployeeId) {
       setStatus(null);
+      setTodayFichajes(null);
       return;
     }
-    publicFichajeService
-      .getEmployeeStatus(publicToken, selectedEmployeeId)
-      .then(setStatus)
-      .catch(() => setStatus(null));
+    setTodayFichajesLoading(true);
+    Promise.all([
+      publicFichajeService.getEmployeeStatus(publicToken, selectedEmployeeId),
+      publicFichajeService.getTodayFichajes(publicToken, selectedEmployeeId),
+    ])
+      .then(([statusData, todayData]) => {
+        setStatus(statusData);
+        setTodayFichajes(todayData);
+      })
+      .catch(() => {
+        setStatus(null);
+        setTodayFichajes(null);
+      })
+      .finally(() => setTodayFichajesLoading(false));
   }, [publicToken, selectedEmployeeId]);
+
+  useEffect(() => {
+    fetchTodayAndStatus();
+  }, [fetchTodayAndStatus]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,23 +129,6 @@ export default function PublicFichajePage() {
     setError(null);
     setSuccess(null);
     setLoading(true);
-    if (status?.hasOpenAttendance && status.attendanceId) {
-      try {
-        await publicFichajeService.checkOut(publicToken, {
-          attendanceId: status.attendanceId,
-          notes: notes || undefined,
-        });
-        setSuccess('¡Salida registrada!');
-        setPin('');
-        setNotes('');
-        setStatus({ hasOpenAttendance: false });
-      } catch (err: any) {
-        setError(err.response?.data?.error || 'Error al registrar salida');
-      } finally {
-        setLoading(false);
-      }
-      return;
-    }
     let latitude: number | undefined;
     let longitude: number | undefined;
     if (info?.requireGeolocation) {
@@ -134,22 +146,64 @@ export default function PublicFichajePage() {
       setLocationLoading(false);
     }
     try {
-      const record = await publicFichajeService.checkIn(publicToken, {
+      await publicFichajeService.checkIn(publicToken, {
         employeeId: selectedEmployeeId,
         pin,
         notes: notes || undefined,
         latitude,
         longitude,
         deviceId: getDeviceId(),
-      }) as { id: string };
-      setSuccess('¡Entrada registrada!');
+      });
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+      setSuccess(`Fichaje registrado: ${timeStr}`);
       setPin('');
       setNotes('');
-      setStatus({ hasOpenAttendance: true, attendanceId: record?.id });
+      fetchTodayAndStatus();
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al registrar entrada');
+      const data = err.response?.data;
+      if (data?.code === 'NEEDS_PIN_CHANGE') {
+        setPinChangeEmployeeId(data.employeeId ?? selectedEmployeeId);
+        setPinChangeEmail('');
+        setPinChangeError(null);
+        setPinChangeSuccess(false);
+        setShowPinChangeModal(true);
+      } else {
+        setError(data?.error || 'Error al registrar fichaje');
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRequestPinChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!publicToken || !pinChangeEmployeeId || !pinChangeEmail.trim()) return;
+    setPinChangeSending(true);
+    setPinChangeError(null);
+    try {
+      await publicFichajeService.requestPinChange(publicToken, pinChangeEmployeeId, pinChangeEmail.trim());
+      setPinChangeSuccess(true);
+    } catch (err: any) {
+      setPinChangeError(err.response?.data?.error || 'Error al enviar el email');
+    } finally {
+      setPinChangeSending(false);
+    }
+  };
+
+  const handleForgotPin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const empId = forgotPinEmployeeId || selectedEmployeeId;
+    if (!publicToken || !empId) return;
+    setForgotPinSending(true);
+    setForgotPinMessage(null);
+    try {
+      const res = await publicFichajeService.forgotPin(publicToken, empId);
+      setForgotPinMessage(res.sent ? 'Revisa tu email para el enlace de cambio de PIN.' : (res.message || 'Contacta a tu supervisor.'));
+    } catch (err: any) {
+      setForgotPinMessage(err.response?.data?.error || 'Error');
+    } finally {
+      setForgotPinSending(false);
     }
   };
 
@@ -217,10 +271,25 @@ export default function PublicFichajePage() {
         </header>
 
         <div className="rounded-2xl bg-white/90 backdrop-blur-sm shadow-xl border border-white/60 p-6">
-          <div className="flex items-center justify-center gap-2 mb-6">
+          <div className="flex items-center justify-center gap-2 mb-1">
             <Clock className="h-7 w-7 text-slate-500" />
             <span className="text-2xl font-semibold tabular-nums text-slate-800">{time}</span>
           </div>
+          {selectedEmployeeId && (
+            <p className="text-center text-sm text-slate-600 mb-4">
+              {todayFichajesLoading || status === null ? (
+                <span className="text-slate-400">Estado...</span>
+              ) : (todayFichajes?.fichajes?.length ?? 0) === 0 ? (
+                <>⏳ Esperando primer fichaje</>
+              ) : status?.isInside && status?.lastCheckIn ? (
+                <>🟢 En turno desde las {new Date(status.lastCheckIn).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</>
+              ) : status?.lastCheckIn ? (
+                <>⚪ Fuera de turno desde las {new Date(status.lastCheckIn).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</>
+              ) : (
+                <>⏳ Esperando primer fichaje</>
+              )}
+            </p>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -259,6 +328,17 @@ export default function PublicFichajePage() {
                     autoComplete="off"
                     disabled={loading || locationLoading}
                   />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setForgotPinEmployeeId(selectedEmployeeId);
+                      setForgotPinMessage(null);
+                      setShowForgotPinModal(true);
+                    }}
+                    className="mt-2 text-sm text-slate-500 hover:text-slate-700 hover:underline"
+                  >
+                    ¿Olvidaste tu PIN?
+                  </button>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -283,6 +363,16 @@ export default function PublicFichajePage() {
                     )}
                   </div>
                 )}
+
+                <FichajesDelDia
+                  fichajes={todayFichajes?.fichajes ?? []}
+                  loading={todayFichajesLoading}
+                />
+                {todayFichajes && todayFichajes.totalHorasTrabajadas > 0 && (
+                  <p className="text-sm font-medium text-slate-700">
+                    Horas trabajadas: {todayFichajes.totalHorasTrabajadas.toFixed(2)} h
+                  </p>
+                )}
               </>
             )}
 
@@ -303,31 +393,121 @@ export default function PublicFichajePage() {
                 !selectedEmployeeId ||
                 pin.length !== 4
               }
-              className="w-full flex items-center justify-center gap-2 rounded-xl py-4 text-lg font-semibold text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{
-                backgroundColor: status?.hasOpenAttendance ? '#f97316' : '#22c55e',
-              }}
+              className="w-full flex items-center justify-center gap-2 rounded-xl py-4 text-lg font-semibold text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed bg-brand-500 hover:bg-brand-600"
             >
               {loading || locationLoading ? (
                 <>
                   <MapPin className="h-5 w-5 animate-pulse" />
                   {locationLoading ? 'Obteniendo ubicación...' : 'Procesando...'}
                 </>
-              ) : status?.hasOpenAttendance ? (
-                <>
-                  <LogOut className="h-5 w-5" />
-                  FICHAR SALIDA
-                </>
               ) : (
-                <>
-                  <LogIn className="h-5 w-5" />
-                  FICHAR ENTRADA
-                </>
+                <>FICHAR</>
               )}
             </button>
           </form>
         </div>
       </div>
+
+      {/* Modal: Primer Fichaje - Configura tu PIN */}
+      {showPinChangeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="rounded-2xl bg-white shadow-2xl max-w-md w-full p-6 border border-slate-200">
+            <h2 className="text-xl font-bold text-slate-800 mb-2">Primer Fichaje – Configura tu PIN</h2>
+            <p className="text-slate-600 text-sm mb-4">
+              Debes cambiar tu PIN antes de poder fichar. Ingresa tu email para recibir un enlace seguro.
+            </p>
+            {pinChangeSuccess ? (
+              <div className="rounded-xl bg-brand-50 px-4 py-3 text-sm text-brand-700 mb-4">
+                Email enviado. Revisa tu bandeja y haz clic en el enlace para cambiar tu PIN.
+              </div>
+            ) : (
+              <form onSubmit={handleRequestPinChange} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={pinChangeEmail}
+                    onChange={(e) => setPinChangeEmail(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3"
+                    placeholder="tu@email.com"
+                    required
+                  />
+                </div>
+                {pinChangeError && (
+                  <div className="rounded-xl bg-red-50 px-4 py-2 text-sm text-red-700">{pinChangeError}</div>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setShowPinChangeModal(false); setPinChangeEmployeeId(null); }}
+                    className="flex-1 rounded-xl border border-slate-300 py-2.5 text-slate-700 font-medium hover:bg-slate-50"
+                  >
+                    Cerrar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={pinChangeSending}
+                    className="flex-1 rounded-xl bg-brand-500 py-2.5 text-white font-medium hover:bg-brand-600 disabled:opacity-50"
+                  >
+                    {pinChangeSending ? 'Enviando...' : 'Enviar link'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal: ¿Olvidaste tu PIN? */}
+      {showForgotPinModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="rounded-2xl bg-white shadow-2xl max-w-md w-full p-6 border border-slate-200">
+            <h2 className="text-xl font-bold text-slate-800 mb-2">¿Olvidaste tu PIN?</h2>
+            <p className="text-slate-600 text-sm mb-4">
+              Selecciona tu nombre y te enviaremos un enlace a tu email para cambiar el PIN.
+            </p>
+            <form onSubmit={handleForgotPin} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Empleado</label>
+                <select
+                  value={forgotPinEmployeeId || selectedEmployeeId}
+                  onChange={(e) => setForgotPinEmployeeId(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3"
+                  required
+                >
+                  <option value="">— Elige empleado —</option>
+                  {employees.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.name} – {emp.position}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {forgotPinMessage && (
+                <div className={`rounded-xl px-4 py-2 text-sm ${forgotPinMessage.includes('Revisa') ? 'bg-brand-50 text-brand-700' : 'bg-amber-50 text-amber-800'}`}>
+                  {forgotPinMessage}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowForgotPinModal(false); setForgotPinMessage(null); }}
+                  className="flex-1 rounded-xl border border-slate-300 py-2.5 text-slate-700 font-medium hover:bg-slate-50"
+                >
+                  Cerrar
+                </button>
+                <button
+                  type="submit"
+                  disabled={forgotPinSending}
+                  className="flex-1 rounded-xl bg-brand-500 py-2.5 text-white font-medium hover:bg-brand-600 disabled:opacity-50"
+                >
+                  {forgotPinSending ? 'Enviando...' : 'Enviar email de recuperación'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

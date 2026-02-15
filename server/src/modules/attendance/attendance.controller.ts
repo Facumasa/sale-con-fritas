@@ -38,6 +38,15 @@ class AttendanceController {
       const attendance = await attendanceService.checkInPublic(body);
       res.status(201).json({ success: true, data: attendance });
     } catch (error: any) {
+      if (error.code === 'NEEDS_PIN_CHANGE') {
+        res.status(400).json({
+          success: false,
+          error: error.message || 'Debes cambiar tu PIN antes de fichar',
+          code: 'NEEDS_PIN_CHANGE',
+          employeeId: error.employeeId,
+        });
+        return;
+      }
       res.status(400).json({
         success: false,
         error: error.message || 'Error al registrar entrada',
@@ -93,6 +102,95 @@ class AttendanceController {
       res.json({ success: true, data: status });
     } catch (error: any) {
       res.status(404).json({ success: false, error: error.message || 'Enlace no válido' });
+    }
+  }
+
+  /**
+   * GET /attendance/public/:publicToken/employee/:employeeId/today (sin auth)
+   */
+  async getPublicEmployeeToday(req: Request, res: Response): Promise<void> {
+    try {
+      const { publicToken, employeeId } = req.params;
+      if (!publicToken || !employeeId) {
+        res.status(400).json({ success: false, error: 'Token y employeeId requeridos' });
+        return;
+      }
+      const data = await attendanceService.getPublicEmployeeToday(publicToken, employeeId);
+      res.json({ success: true, data });
+    } catch (error: any) {
+      res.status(404).json({ success: false, error: error.message || 'Enlace no válido' });
+    }
+  }
+
+  /**
+   * POST /attendance/request-pin-change (sin auth)
+   */
+  async requestPinChange(req: Request, res: Response): Promise<void> {
+    try {
+      const body = req.body as { employeeId: string; email: string; publicToken: string };
+      if (!body.employeeId || !body.email || !body.publicToken) {
+        res.status(400).json({ success: false, error: 'employeeId, email y publicToken son requeridos' });
+        return;
+      }
+      await attendanceService.requestPinChange(body.employeeId, body.email, body.publicToken);
+      res.json({ success: true, message: 'Email enviado' });
+    } catch (error: any) {
+      res.status(400).json({ success: false, error: error.message || 'Error al enviar email' });
+    }
+  }
+
+  /**
+   * POST /attendance/verify-pin-token (sin auth)
+   */
+  async verifyPinToken(req: Request, res: Response): Promise<void> {
+    try {
+      const body = req.body as { token: string };
+      if (!body.token) {
+        res.status(400).json({ success: false, error: 'token es requerido' });
+        return;
+      }
+      const result = await attendanceService.verifyPinToken(body.token);
+      if (!result.valid) {
+        res.json({ success: true, valid: false });
+        return;
+      }
+      res.json({ success: true, valid: true, employeeId: result.employeeId, employeeName: result.employeeName });
+    } catch (error: any) {
+      res.status(400).json({ success: false, error: error.message || 'Error al verificar token' });
+    }
+  }
+
+  /**
+   * POST /attendance/change-pin (sin auth)
+   */
+  async changePin(req: Request, res: Response): Promise<void> {
+    try {
+      const body = req.body as { token: string; oldPin: string; newPin: string };
+      if (!body.token || !body.oldPin || !body.newPin) {
+        res.status(400).json({ success: false, error: 'token, oldPin y newPin son requeridos' });
+        return;
+      }
+      await attendanceService.changePin(body.token, body.oldPin, body.newPin);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ success: false, error: error.message || 'Error al cambiar PIN' });
+    }
+  }
+
+  /**
+   * POST /attendance/forgot-pin (sin auth)
+   */
+  async forgotPin(req: Request, res: Response): Promise<void> {
+    try {
+      const body = req.body as { employeeId: string; publicToken: string };
+      if (!body.employeeId || !body.publicToken) {
+        res.status(400).json({ success: false, error: 'employeeId y publicToken son requeridos' });
+        return;
+      }
+      const result = await attendanceService.forgotPin(body.employeeId, body.publicToken);
+      res.json({ success: true, ...result });
+    } catch (error: any) {
+      res.status(400).json({ success: false, error: error.message || 'Error' });
     }
   }
 

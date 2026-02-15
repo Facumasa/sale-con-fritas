@@ -10,6 +10,11 @@ router.post('/public/check-out', (req, res) => attendanceController.checkOutPubl
 router.get('/public/:publicToken/info', (req, res) => attendanceController.getPublicFichajeInfo(req, res));
 router.get('/public/:publicToken/employees', (req, res) => attendanceController.getPublicFichajeEmployees(req, res));
 router.get('/public/:publicToken/employee/:employeeId/status', (req, res) => attendanceController.getPublicEmployeeStatus(req, res));
+router.get('/public/:publicToken/employee/:employeeId/today', (req, res) => attendanceController.getPublicEmployeeToday(req, res));
+router.post('/request-pin-change', (req, res) => attendanceController.requestPinChange(req, res));
+router.post('/verify-pin-token', (req, res) => attendanceController.verifyPinToken(req, res));
+router.post('/change-pin', (req, res) => attendanceController.changePin(req, res));
+router.post('/forgot-pin', (req, res) => attendanceController.forgotPin(req, res));
 
 router.use(authenticateToken);
 

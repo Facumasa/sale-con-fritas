@@ -8,6 +8,7 @@ export interface Employee {
   position: string;
   hourlyRate: number | null;
   phone: string | null;
+  email: string | null;
   color: string;
   isActive: boolean;
   createdAt: string;

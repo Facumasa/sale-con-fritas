@@ -63,23 +63,27 @@ model Subscription {
 }
 
 model Employee {
-  id           String        @id @default(cuid())
-  userId       String?       @unique
-  user         User?         @relation(fields: [userId], references: [id])
-  restaurantId String
-  restaurant   Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  name         String
-  position     String
-  hourlyRate   Float?
-  phone        String?
-  color        String        @default("#3b82f6")
-  pin          String?       @unique
-  qrCode       String?      @unique
-  isActive     Boolean       @default(true)
-  shifts       Shift[]
-  attendances  Attendance[]
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id               String        @id @default(cuid())
+  userId           String?       @unique
+  user             User?         @relation(fields: [userId], references: [id])
+  restaurantId     String
+  restaurant       Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  name             String
+  position         String
+  hourlyRate       Float?
+  phone            String?
+  email            String?
+  color            String        @default("#3b82f6")
+  pin              String?       @unique
+  qrCode           String?       @unique
+  needsPinChange   Boolean       @default(true)
+  pinResetToken    String?       @unique
+  pinResetExpires  DateTime?
+  isActive         Boolean       @default(true)
+  shifts           Shift[]
+  attendances      Attendance[]
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   @@index([restaurantId])
 }

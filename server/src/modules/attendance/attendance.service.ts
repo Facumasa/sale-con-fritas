@@ -1,5 +1,7 @@
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import prisma from '../../config/database';
+import { sendPinResetEmail } from '../../services/email.service';
 import {
   CheckInRequest,
   CheckOutRequest,
@@ -78,6 +80,7 @@ class AttendanceService {
         restaurantId,
         isActive: true,
       },
+      select: { id: true, pin: true, needsPinChange: true },
     });
 
     if (!employee) {
@@ -91,6 +94,13 @@ class AttendanceService {
     const pinMatch = await bcrypt.compare(data.pin, employee.pin);
     if (!pinMatch) {
       throw new Error('PIN incorrecto');
+    }
+
+    if (employee.needsPinChange) {
+      const err = new Error('Debes cambiar tu PIN antes de fichar. Revisa tu email o solicita un nuevo enlace.') as Error & { code?: string; employeeId?: string };
+      err.code = 'NEEDS_PIN_CHANGE';
+      err.employeeId = data.employeeId;
+      throw err;
     }
 
     const lat = data.latitude;
@@ -159,20 +169,6 @@ class AttendanceService {
         isLate = true;
         minutesLate = late;
       }
-    }
-
-    const existing = await prisma.attendance.findFirst({
-      where: {
-        employeeId: data.employeeId,
-        restaurantId,
-        date: { gte: todayStart, lte: todayEnd },
-        checkIn: { not: null },
-        checkOut: null,
-      },
-    });
-
-    if (existing) {
-      throw new Error('Ya tienes un fichaje de entrada abierto hoy');
     }
 
     let distanceFromRestaurant: number | null = null;
@@ -293,12 +289,12 @@ class AttendanceService {
   }
 
   /**
-   * Estado de fichaje de un empleado hoy (para mostrar Entrada vs Salida en página pública)
+   * Estado de fichaje de un empleado hoy (para mostrar si está "dentro" o "fuera" según último fichaje)
    */
   async getPublicEmployeeStatus(
     publicToken: string,
     employeeId: string
-  ): Promise<{ hasOpenAttendance: boolean; attendanceId?: string }> {
+  ): Promise<{ hasOpenAttendance: boolean; attendanceId?: string; lastCheckIn?: string; isInside: boolean }> {
     const restaurant = await prisma.restaurant.findFirst({
       where: { publicFichajeToken: publicToken },
       select: { id: true },
@@ -308,18 +304,86 @@ class AttendanceService {
     todayStart.setHours(0, 0, 0, 0);
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
-    const open = await prisma.attendance.findFirst({
+    const todayFichajes = await prisma.attendance.findMany({
       where: {
         restaurantId: restaurant.id,
         employeeId,
         date: { gte: todayStart, lte: todayEnd },
         checkIn: { not: null },
-        checkOut: null,
       },
+      orderBy: { checkIn: 'asc' },
+      select: { id: true, checkIn: true },
+    });
+    const count = todayFichajes.length;
+    const last = todayFichajes[count - 1];
+    const isInside = count > 0 && count % 2 === 1;
+    return {
+      hasOpenAttendance: isInside,
+      attendanceId: last?.id,
+      lastCheckIn: last?.checkIn ? last.checkIn.toISOString() : undefined,
+      isInside,
+    };
+  }
+
+  /**
+   * Fichajes del día de un empleado (página pública)
+   */
+  async getPublicEmployeeToday(
+    publicToken: string,
+    employeeId: string
+  ): Promise<{
+    employeeId: string;
+    employeeName: string;
+    date: string;
+    fichajes: { id: string; checkIn: string; minutesLate: number | null }[];
+    totalFichajes: number;
+    totalHorasTrabajadas: number;
+  }> {
+    const restaurant = await prisma.restaurant.findFirst({
+      where: { publicFichajeToken: publicToken },
       select: { id: true },
     });
-    if (open) return { hasOpenAttendance: true, attendanceId: open.id };
-    return { hasOpenAttendance: false };
+    if (!restaurant) throw new Error('Enlace de fichaje no válido');
+    const employee = await prisma.employee.findFirst({
+      where: { id: employeeId, restaurantId: restaurant.id, isActive: true },
+      select: { id: true, name: true },
+    });
+    if (!employee) throw new Error('Empleado no encontrado');
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+    const records = await prisma.attendance.findMany({
+      where: {
+        restaurantId: restaurant.id,
+        employeeId,
+        date: { gte: todayStart, lte: todayEnd },
+        checkIn: { not: null },
+      },
+      orderBy: { checkIn: 'asc' },
+      select: { id: true, checkIn: true, minutesLate: true },
+    });
+    const fichajes = records.map((r) => ({
+      id: r.id,
+      checkIn: r.checkIn!.toISOString(),
+      minutesLate: r.minutesLate,
+    }));
+    let totalHorasTrabajadas = 0;
+    for (let i = 0; i + 1 < records.length; i += 2) {
+      const a = records[i].checkIn!;
+      const b = records[i + 1].checkIn!;
+      totalHorasTrabajadas += (b.getTime() - a.getTime()) / (1000 * 60 * 60);
+    }
+    totalHorasTrabajadas = Math.round(totalHorasTrabajadas * 100) / 100;
+    const dateStr = todayStart.toISOString().split('T')[0];
+    return {
+      employeeId: employee.id,
+      employeeName: employee.name,
+      date: dateStr,
+      fichajes,
+      totalFichajes: fichajes.length,
+      totalHorasTrabajadas,
+    };
   }
 
   /**
@@ -695,6 +759,118 @@ class AttendanceService {
       throw new Error('Registro de asistencia no encontrado');
     }
     await prisma.attendance.delete({ where: { id } });
+  }
+
+  /**
+   * Solicitar cambio de PIN: guardar email, generar token y enviar email (público)
+   */
+  async requestPinChange(employeeId: string, email: string, publicToken: string): Promise<void> {
+    const restaurant = await prisma.restaurant.findFirst({
+      where: { publicFichajeToken: publicToken },
+      select: { id: true, publicFichajeToken: true },
+    });
+    if (!restaurant) throw new Error('Enlace de fichaje no válido');
+
+    const employee = await prisma.employee.findFirst({
+      where: { id: employeeId, restaurantId: restaurant.id, isActive: true },
+    });
+    if (!employee) throw new Error('Empleado no encontrado');
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await prisma.employee.update({
+      where: { id: employeeId },
+      data: {
+        email: email || employee.email,
+        pinResetToken: token,
+        pinResetExpires: expires,
+      },
+    });
+
+    const emailToSend = email || employee.email;
+    if (!emailToSend) throw new Error('Email es requerido');
+    await sendPinResetEmail(
+      emailToSend,
+      token,
+      employee.name,
+      restaurant.publicFichajeToken ?? null
+    );
+  }
+
+  /**
+   * Verificar token de cambio de PIN (público)
+   */
+  async verifyPinToken(token: string): Promise<{ valid: true; employeeId: string; employeeName: string } | { valid: false }> {
+    const employee = await prisma.employee.findFirst({
+      where: {
+        pinResetToken: token,
+        pinResetExpires: { gt: new Date() },
+      },
+      select: { id: true, name: true },
+    });
+    if (!employee) return { valid: false };
+    return { valid: true, employeeId: employee.id, employeeName: employee.name };
+  }
+
+  /**
+   * Cambiar PIN con token (público)
+   */
+  async changePin(token: string, oldPin: string, newPin: string): Promise<void> {
+    const employee = await prisma.employee.findFirst({
+      where: {
+        pinResetToken: token,
+        pinResetExpires: { gt: new Date() },
+      },
+    });
+    if (!employee) throw new Error('Link expirado o inválido');
+    if (!employee.pin) throw new Error('Empleado sin PIN');
+
+    const oldMatch = await bcrypt.compare(oldPin, employee.pin);
+    if (!oldMatch) throw new Error('PIN actual incorrecto');
+
+    if (!/^\d{4}$/.test(newPin)) throw new Error('El nuevo PIN debe tener 4 dígitos');
+    if (oldPin === newPin) throw new Error('El nuevo PIN debe ser distinto al actual');
+
+    const hashedNewPin = await bcrypt.hash(newPin, 10);
+    await prisma.employee.update({
+      where: { id: employee.id },
+      data: {
+        pin: hashedNewPin,
+        needsPinChange: false,
+        pinResetToken: null,
+        pinResetExpires: null,
+      },
+    });
+  }
+
+  /**
+   * Olvidé mi PIN: enviar email si tiene email guardado (público)
+   */
+  async forgotPin(employeeId: string, publicToken: string): Promise<{ sent: boolean; message: string }> {
+    const restaurant = await prisma.restaurant.findFirst({
+      where: { publicFichajeToken: publicToken },
+    });
+    if (!restaurant) throw new Error('Enlace de fichaje no válido');
+
+    const employee = await prisma.employee.findFirst({
+      where: { id: employeeId, restaurantId: restaurant.id, isActive: true },
+    });
+    if (!employee) throw new Error('Empleado no encontrado');
+
+    const emailToSend = employee.email;
+    if (!emailToSend) {
+      return { sent: false, message: 'Contacta a tu supervisor para configurar tu email y recuperar el PIN.' };
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await prisma.employee.update({
+      where: { id: employeeId },
+      data: { pinResetToken: token, pinResetExpires: expires },
+    });
+    await sendPinResetEmail(emailToSend, token, employee.name, publicToken);
+    return { sent: true, message: 'Email enviado' };
   }
 }
 

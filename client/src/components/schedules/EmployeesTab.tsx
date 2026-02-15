@@ -136,6 +136,11 @@ export default function EmployeesTab({ hideHeading = false }: EmployeesTabProps)
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-1">{employee.name}</h3>
             <p className="text-sm text-gray-600 mb-2">{employee.position}</p>
+            {employee.email ? (
+              <p className="text-sm text-gray-700">{employee.email}</p>
+            ) : (
+              <p className="text-sm text-gray-400">Sin email</p>
+            )}
             {employee.hourlyRate && (
               <p className="text-sm text-gray-500">${employee.hourlyRate}/h</p>
             )}

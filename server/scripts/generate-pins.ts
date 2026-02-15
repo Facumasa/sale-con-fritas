@@ -1,7 +1,7 @@
 /**
- * Script para generar PINs de 4 dígitos a empleados activos que aún no tienen PIN.
- * Los PINs se hashean con bcrypt y se guardan en la base de datos.
- * IMPORTANTE: Guarda los PINs que aparezcan en consola para dárselos a los empleados.
+ * Script para asignar PIN por defecto "1234" a empleados activos que aún no tienen PIN.
+ * El PIN se hashea con bcrypt y se guarda. Se marca needsPinChange = true para que
+ * el empleado deba cambiarlo en el primer fichaje.
  *
  * Ejecutar desde la carpeta server: npx ts-node scripts/generate-pins.ts
  * Requiere DATABASE_URL en .env (PostgreSQL).
@@ -13,9 +13,7 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-function generateFourDigitPin(): string {
-  return String(Math.floor(1000 + Math.random() * 9000));
-}
+const DEFAULT_PIN = '1234';
 
 async function main() {
   console.log('🔐 Buscando empleados activos sin PIN...\n');
@@ -33,24 +31,20 @@ async function main() {
     return;
   }
 
-  console.log(`Encontrados ${employees.length} empleado(s) sin PIN.\n`);
-  console.log('--- PINs generados (guárdalos para dárselos a los empleados) ---\n');
+  console.log(`Encontrados ${employees.length} empleado(s) sin PIN.`);
+  console.log(`Se asignará PIN por defecto "${DEFAULT_PIN}" (deben cambiarlo en el primer fichaje).\n`);
+
+  const hashedPin = await bcrypt.hash(DEFAULT_PIN, 10);
 
   for (const employee of employees) {
-    const pin = generateFourDigitPin();
-    const hashedPin = await bcrypt.hash(pin, 10);
-
     await prisma.employee.update({
       where: { id: employee.id },
-      data: { pin: hashedPin },
+      data: { pin: hashedPin, needsPinChange: true },
     });
-
-    console.log(`  ${employee.name} (${employee.position}): PIN = ${pin}`);
+    console.log(`  ✓ ${employee.name} (${employee.position})`);
   }
 
-  console.log('\n--- Fin de la lista ---');
-  console.log('\n✅ PINs generados y guardados correctamente.');
-  console.log('⚠️  Guarda los PINs de arriba; no se volverán a mostrar en claro.');
+  console.log('\n✅ PINs por defecto asignados. Los empleados deberán cambiar el PIN al fichar por primera vez.');
 }
 
 main()

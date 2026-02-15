@@ -10,6 +10,7 @@ import SchedulesPage from './pages/schedules/SchedulesPage';
 import AttendancePage from './pages/attendance/AttendancePage';
 import EmployeesPage from './pages/employees/EmployeesPage';
 import PublicFichajePage from './pages/PublicFichajePage';
+import ChangePinPage from './pages/ChangePinPage';
 
 function App() {
   const { token, loadUser } = useAuthStore();
@@ -36,8 +37,9 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
 
-        {/* Ruta pública de fichaje (sin login) */}
+        {/* Rutas públicas (sin login) */}
         <Route path="/fichaje/:publicToken" element={<PublicFichajePage />} />
+        <Route path="/cambiar-pin/:token" element={<ChangePinPage />} />
 
         {/* Protected routes with layout */}
         <Route

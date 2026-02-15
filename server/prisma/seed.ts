@@ -51,8 +51,9 @@ async function main() {
       },
     });
 
-    // 4. Empleados
+    // 4. Empleados (PIN por defecto 1234, deben cambiarlo en primer fichaje)
     console.log('👥 Creando empleados...');
+    const defaultPinHash = await bcrypt.hash('1234', 10);
     const maria = await prisma.employee.create({
       data: {
         restaurantId: restaurant.id,
@@ -61,6 +62,8 @@ async function main() {
         hourlyRate: 12.5,
         color: '#ef4444',
         isActive: true,
+        pin: defaultPinHash,
+        needsPinChange: true,
       },
     });
     const juan = await prisma.employee.create({
@@ -71,6 +74,8 @@ async function main() {
         hourlyRate: 15,
         color: '#3b82f6',
         isActive: true,
+        pin: defaultPinHash,
+        needsPinChange: true,
       },
     });
     const ana = await prisma.employee.create({
@@ -81,6 +86,8 @@ async function main() {
         hourlyRate: 11,
         color: '#10b981',
         isActive: true,
+        pin: defaultPinHash,
+        needsPinChange: true,
       },
     });
     const employees = [maria, juan, ana];
